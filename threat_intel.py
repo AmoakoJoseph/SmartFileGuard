@@ -163,11 +163,99 @@ class ThreatIntelligence:
             return {'is_threat': False, 'details': 'Check failed'}
     
     def check_virustotal(self, url):
-        """Check URL against VirusTotal API"""
+        """Check URL against VirusTotal API with enhanced v3 support"""
         try:
             if not self.virustotal_key:
                 return {'is_threat': False, 'details': 'API key not configured'}
             
+            # Try v3 API first, fallback to v2
+            result = self.check_virustotal_v3_url(url)
+            if result.get('api_success'):
+                return result
+            
+            return self.check_virustotal_v2_url(url)
+            
+        except Exception as e:
+            logging.error(f"VirusTotal check error: {str(e)}")
+            return {'is_threat': False, 'details': 'Check failed'}
+    
+    def check_virustotal_v3_url(self, url):
+        """Check URL using VirusTotal v3 API"""
+        try:
+            import base64
+            
+            # Encode URL for v3 API
+            url_id = base64.urlsafe_b64encode(url.encode()).decode().strip("=")
+            
+            headers = {
+                'x-apikey': self.virustotal_key,
+                'Content-Type': 'application/json'
+            }
+            
+            # Get analysis results
+            analysis_url = f"{self.virustotal_url_v3}/{url_id}"
+            response = requests.get(analysis_url, headers=headers, timeout=15)
+            
+            if response.status_code == 200:
+                data = response.json()
+                
+                if 'data' in data and 'attributes' in data['data']:
+                    attributes = data['data']['attributes']
+                    stats = attributes.get('last_analysis_stats', {})
+                    
+                    malicious = stats.get('malicious', 0)
+                    suspicious = stats.get('suspicious', 0)
+                    harmless = stats.get('harmless', 0)
+                    undetected = stats.get('undetected', 0)
+                    total_scans = malicious + suspicious + harmless + undetected
+                    
+                    # Get threat engine details
+                    engines_data = attributes.get('last_analysis_results', {})
+                    threat_engines = []
+                    for name, result in engines_data.items():
+                        if result.get('category') in ['malicious', 'suspicious']:
+                            engine_result = result.get('result', 'flagged')
+                            threat_engines.append(f"{name}: {engine_result}")
+                    
+                    is_threat = malicious > 0 or suspicious > 3
+                    threat_score = (malicious + suspicious * 0.5) / max(total_scans, 1)
+                    
+                    return {
+                        'api_success': True,
+                        'is_threat': is_threat,
+                        'details': f'VT v3: {malicious} malicious, {suspicious} suspicious ({total_scans} engines)',
+                        'malicious_count': malicious,
+                        'suspicious_count': suspicious,
+                        'harmless_count': harmless,
+                        'total_engines': total_scans,
+                        'threat_score': threat_score,
+                        'threat_engines': threat_engines[:5],  # Top 5 engines
+                        'scan_date': attributes.get('last_analysis_date', ''),
+                        'reputation': attributes.get('reputation', 0),
+                        'source': 'VirusTotal v3'
+                    }
+            
+            # If URL not found, try submitting for analysis
+            elif response.status_code == 404:
+                submit_result = self.submit_url_to_virustotal(url)
+                if submit_result.get('success'):
+                    return {
+                        'api_success': True,
+                        'is_threat': False,
+                        'details': 'URL submitted for analysis - check back later',
+                        'analysis_id': submit_result.get('analysis_id'),
+                        'source': 'VirusTotal v3'
+                    }
+            
+            return {'api_success': False}
+                
+        except Exception as e:
+            logging.error(f"VirusTotal v3 API error: {str(e)}")
+            return {'api_success': False}
+    
+    def check_virustotal_v2_url(self, url):
+        """Fallback to VirusTotal v2 API for URL checking"""
+        try:
             params = {
                 'apikey': self.virustotal_key,
                 'resource': url
@@ -182,23 +270,58 @@ class ThreatIntelligence:
                     positives = result.get('positives', 0)
                     total = result.get('total', 0)
                     
-                    is_threat = positives > 0
                     return {
-                        'is_threat': is_threat,
-                        'details': f"{positives}/{total} engines detected threats" if is_threat else 'Clean',
+                        'api_success': True,
+                        'is_threat': positives > 0,
+                        'details': f'VT v2: {positives}/{total} engines detected threats',
                         'positives': positives,
                         'total': total,
-                        'source': 'VirusTotal'
+                        'threat_score': positives / max(total, 1),
+                        'source': 'VirusTotal v2'
                     }
                 else:
-                    return {'is_threat': False, 'details': 'Not found in VirusTotal database'}
+                    return {
+                        'api_success': True,
+                        'is_threat': False,
+                        'details': 'URL not found in VirusTotal database'
+                    }
             else:
-                logging.warning(f"VirusTotal API error: {response.status_code}")
-                return {'is_threat': False, 'details': 'API error'}
-            
+                logging.warning(f"VirusTotal v2 API error: {response.status_code}")
+                return {'api_success': False}
+                
         except Exception as e:
-            logging.error(f"VirusTotal check error: {str(e)}")
-            return {'is_threat': False, 'details': 'Check failed'}
+            logging.error(f"VirusTotal v2 API error: {str(e)}")
+            return {'api_success': False}
+    
+    def submit_url_to_virustotal(self, url):
+        """Submit URL to VirusTotal for analysis"""
+        try:
+            headers = {
+                'x-apikey': self.virustotal_key,
+                'Content-Type': 'application/json'
+            }
+            
+            submit_data = {'url': url}
+            response = requests.post(self.virustotal_url_v3, json=submit_data, headers=headers, timeout=10)
+            
+            if response.status_code == 200:
+                data = response.json()
+                analysis_id = data.get('data', {}).get('id', '')
+                
+                return {
+                    'success': True,
+                    'analysis_id': analysis_id,
+                    'details': 'URL submitted for analysis'
+                }
+            else:
+                return {
+                    'success': False,
+                    'details': f'Submit failed: {response.status_code}'
+                }
+                
+        except Exception as e:
+            logging.error(f"VirusTotal URL submit error: {str(e)}")
+            return {'success': False, 'details': f'Submit error: {str(e)}'}
     
     def check_phishtank(self, url):
         """Check URL against PhishTank API"""
@@ -298,3 +421,158 @@ class ThreatIntelligence:
         except Exception as e:
             logging.error(f"Error in heuristic analysis: {str(e)}")
             return {'suspicious': False, 'reasons': [], 'score': 0.0}
+    
+    def check_virustotal_file_hash(self, file_hash):
+        """Check file hash against VirusTotal using v3 API"""
+        try:
+            if not self.virustotal_key or not file_hash:
+                return {'is_threat': False, 'details': 'API key or hash not available'}
+            
+            headers = {'x-apikey': self.virustotal_key}
+            
+            # Check file hash
+            analysis_url = f"{self.virustotal_file_v3}/{file_hash}"
+            response = requests.get(analysis_url, headers=headers, timeout=15)
+            
+            if response.status_code == 200:
+                data = response.json()
+                
+                if 'data' in data and 'attributes' in data['data']:
+                    attributes = data['data']['attributes']
+                    stats = attributes.get('last_analysis_stats', {})
+                    
+                    malicious = stats.get('malicious', 0)
+                    suspicious = stats.get('suspicious', 0)
+                    undetected = stats.get('undetected', 0)
+                    harmless = stats.get('harmless', 0)
+                    total_scans = malicious + suspicious + undetected + harmless
+                    
+                    # Get threat names from engines
+                    engines_data = attributes.get('last_analysis_results', {})
+                    threat_names = []
+                    threat_engines = []
+                    
+                    for engine, result in engines_data.items():
+                        if result.get('category') == 'malicious':
+                            threat_result = result.get('result', 'malware')
+                            if threat_result and threat_result.lower() not in ['none', 'null']:
+                                threat_names.append(threat_result)
+                                threat_engines.append(f"{engine}: {threat_result}")
+                    
+                    is_threat = malicious > 0
+                    threat_score = malicious / max(total_scans, 1)
+                    
+                    # Get file metadata
+                    file_type = attributes.get('type_description', 'Unknown')
+                    file_size = attributes.get('size', 0)
+                    first_seen = attributes.get('first_submission_date', '')
+                    
+                    # Extract unique threat families
+                    unique_threats = list(set(threat_names))[:5]  # Top 5 unique threats
+                    
+                    result = {
+                        'is_threat': is_threat,
+                        'details': f'VT File: {malicious}/{total_scans} engines detected malware',
+                        'malicious_count': malicious,
+                        'suspicious_count': suspicious,
+                        'harmless_count': harmless,
+                        'total_engines': total_scans,
+                        'threat_score': threat_score,
+                        'threat_names': unique_threats,
+                        'threat_engines': threat_engines[:5],
+                        'file_type': file_type,
+                        'file_size': file_size,
+                        'first_seen': first_seen,
+                        'reputation': attributes.get('reputation', 0),
+                        'scan_date': attributes.get('last_analysis_date', ''),
+                        'source': 'VirusTotal File Analysis'
+                    }
+                    
+                    # Add severity assessment
+                    if malicious > 10:
+                        result['severity'] = 'critical'
+                    elif malicious > 5:
+                        result['severity'] = 'high'
+                    elif malicious > 0:
+                        result['severity'] = 'medium'
+                    elif suspicious > 5:
+                        result['severity'] = 'low'
+                    else:
+                        result['severity'] = 'clean'
+                    
+                    return result
+                    
+            elif response.status_code == 404:
+                return {
+                    'is_threat': False,
+                    'details': 'File hash not found in VirusTotal database',
+                    'hash_unknown': True,
+                    'recommendation': 'consider_upload'
+                }
+            else:
+                return {
+                    'is_threat': False,
+                    'details': f'VirusTotal API error: {response.status_code}'
+                }
+                
+        except Exception as e:
+            logging.error(f"VirusTotal file hash API error: {str(e)}")
+            return {'is_threat': False, 'details': f'Error: {str(e)}'}
+    
+    def analyze_file_with_virustotal(self, file_path, file_hash):
+        """Comprehensive file analysis using VirusTotal"""
+        try:
+            result = {
+                'virustotal_analysis': None,
+                'recommendation': 'unknown',
+                'enhanced_data': {}
+            }
+            
+            # Check if file hash exists in VT database
+            logging.info(f"Checking file hash in VirusTotal: {file_hash[:16]}...")
+            vt_result = self.check_virustotal_file_hash(file_hash)
+            result['virustotal_analysis'] = vt_result
+            
+            if vt_result.get('hash_unknown', False):
+                result['recommendation'] = 'hash_unknown'
+                result['enhanced_data']['can_upload'] = os.path.exists(file_path) and os.path.getsize(file_path) <= 32 * 1024 * 1024
+            else:
+                # File exists in VT database
+                malicious_count = vt_result.get('malicious_count', 0)
+                suspicious_count = vt_result.get('suspicious_count', 0)
+                severity = vt_result.get('severity', 'unknown')
+                
+                if malicious_count > 0:
+                    if severity in ['critical', 'high']:
+                        result['recommendation'] = 'quarantine_immediately'
+                    else:
+                        result['recommendation'] = 'quarantine_recommended'
+                    
+                    # Add threat intelligence
+                    result['enhanced_data'].update({
+                        'threat_families': vt_result.get('threat_names', []),
+                        'detection_engines': vt_result.get('threat_engines', []),
+                        'threat_severity': severity
+                    })
+                elif suspicious_count > 5:
+                    result['recommendation'] = 'suspicious_monitor'
+                    result['enhanced_data']['suspicious_engines'] = suspicious_count
+                else:
+                    result['recommendation'] = 'likely_safe'
+                    result['enhanced_data']['clean_reputation'] = vt_result.get('reputation', 0)
+                
+                # Add file intelligence
+                result['enhanced_data'].update({
+                    'file_type': vt_result.get('file_type', 'Unknown'),
+                    'first_seen': vt_result.get('first_seen', ''),
+                    'total_engines': vt_result.get('total_engines', 0)
+                })
+            
+            return result
+            
+        except Exception as e:
+            logging.error(f"Error in VirusTotal file analysis: {str(e)}")
+            return {
+                'virustotal_analysis': {'error': str(e)},
+                'recommendation': 'analysis_error'
+            }
