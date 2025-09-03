@@ -2,7 +2,7 @@ modules = ["python-3.11"]
 
 [nix]
 channel = "stable-25_05"
-packages = ["file", "glibcLocales", "openssl", "postgresql"]
+packages = ["cargo", "file", "glibcLocales", "iana-etc", "libiconv", "libjpeg_turbo", "libpng", "libxcrypt", "openssl", "pkg-config", "postgresql", "rustc", "which"]
 
 [deployment]
 deploymentTarget = "autoscale"
@@ -46,4 +46,4 @@ localPort = 5000
 externalPort = 80
 
 [agent]
-integrations = ["styling_replit==1.0.0"]
+integrations = ["styling_replit==1.0.0", "python_database==1.0.0"]

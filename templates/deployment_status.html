@@ -1,0 +1,238 @@
+{% extends "base.html" %}
+
+{% block title %}Deployment Status - SmartFileGuardian{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row mb-4">
+        <div class="col">
+            <h1 class="h2 mb-3">
+                <i class="fas fa-server me-2"></i>
+                Deployment Status
+            </h1>
+            <p class="lead text-muted">
+                System information and feature availability for {{ info.application }}.
+            </p>
+        </div>
+    </div>
+
+    <!-- System Overview -->
+    <div class="row mb-4">
+        <div class="col">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-info-circle me-2"></i>
+                        System Overview
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6><i class="fas fa-tag me-2"></i>Application Details</h6>
+                            <ul class="list-unstyled">
+                                <li><strong>Name:</strong> {{ info.application }}</li>
+                                <li><strong>Version:</strong> {{ info.version }}</li>
+                                <li><strong>Deployment:</strong> {{ info.deployment_date }}</li>
+                                <li><strong>Framework:</strong> {{ info.framework }}</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6><i class="fas fa-cogs me-2"></i>Technical Stack</h6>
+                            <ul class="list-unstyled">
+                                <li><strong>Python:</strong> {{ info.python_version }}</li>
+                                <li><strong>Database:</strong> {{ info.database }}</li>
+                                <li><strong>Enhanced Features:</strong> 
+                                    {% if info.enhanced_features %}
+                                        <span class="badge bg-success">Active</span>
+                                    {% else %}
+                                        <span class="badge bg-warning">Basic Mode</span>
+                                    {% endif %}
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Security Features -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-shield-alt me-2"></i>
+                        Security Features
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <ul class="list-unstyled">
+                        {% for feature, status in info.security_features.items() %}
+                        <li class="d-flex justify-content-between align-items-center mb-2">
+                            <span>{{ feature.replace('_', ' ').title() }}:</span>
+                            {% if status %}
+                                <span class="badge bg-success">Enabled</span>
+                            {% else %}
+                                <span class="badge bg-danger">Disabled</span>
+                            {% endif %}
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-brain me-2"></i>
+                        ML Capabilities
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <ul class="list-unstyled">
+                        {% for capability, status in info.ml_capabilities.items() %}
+                        <li class="d-flex justify-content-between align-items-center mb-2">
+                            <span>{{ capability.replace('_', ' ').title() }}:</span>
+                            {% if status %}
+                                <span class="badge bg-success">Available</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Not Available</span>
+                            {% endif %}
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Privacy Compliance -->
+    <div class="row mb-4">
+        <div class="col">
+            <div class="card">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-user-shield me-2"></i>
+                        Privacy & Compliance
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% for compliance, status in info.privacy_compliance.items() %}
+                        <div class="col-md-3">
+                            <div class="text-center">
+                                <h6>{{ compliance.replace('_', ' ').title() }}</h6>
+                                {% if status is boolean %}
+                                    {% if status %}
+                                        <span class="badge bg-success">Ready</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">Not Configured</span>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="badge bg-info">{{ status }}</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Feature Status Grid -->
+    <div class="row mb-4">
+        <div class="col">
+            <h3><i class="fas fa-list-check me-2"></i>Feature Status</h3>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <i class="fas fa-upload fa-3x mb-3 text-primary"></i>
+                    <h5>File Scanning</h5>
+                    <span class="badge bg-success">Operational</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <i class="fas fa-globe fa-3x mb-3 text-info"></i>
+                    <h5>URL Analysis</h5>
+                    <span class="badge bg-success">Operational</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <i class="fas fa-lock fa-3x mb-3 text-warning"></i>
+                    <h5>Quarantine</h5>
+                    <span class="badge bg-success">Operational</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <i class="fas fa-chart-line fa-3x mb-3 text-success"></i>
+                    <h5>Real-time Updates</h5>
+                    {% if info.enhanced_features %}
+                        <span class="badge bg-success">Active</span>
+                    {% else %}
+                        <span class="badge bg-secondary">Unavailable</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Docker Deployment Instructions -->
+    <div class="row">
+        <div class="col">
+            <div class="card">
+                <div class="card-header bg-dark text-white">
+                    <h5 class="card-title mb-0">
+                        <i class="fab fa-docker me-2"></i>
+                        Docker Deployment
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p>To deploy this application using Docker:</p>
+                    <pre><code># Clone the repository
+git clone &lt;repository-url&gt;
+cd smartfileguardian
+
+# Build and start all services
+docker-compose up -d
+
+# View logs
+docker-compose logs -f
+
+# Scale workers (optional)
+docker-compose up -d --scale worker=3
+
+# Stop services
+docker-compose down</code></pre>
+                    
+                    <div class="alert alert-info mt-3">
+                        <i class="fas fa-info-circle me-2"></i>
+                        The Docker setup includes PostgreSQL database, Redis for caching, 
+                        Celery workers for background processing, and Nginx as reverse proxy.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

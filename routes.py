@@ -1,15 +1,28 @@
 from flask import render_template, request, jsonify, flash, redirect, url_for, send_file
+from flask_limiter import Limiter
+from flask_wtf import FlaskForm, CSRFProtect
 from werkzeug.utils import secure_filename
 import os
+import json
 import logging
 from datetime import datetime, timedelta
 
-from app import app, db
+from app import app, db, limiter, socketio
 from models import ScanResult, URLScan, QuarantineItem, ActivityLog, SystemMetrics
 from file_scanner import FileScanner
 from threat_intel import ThreatIntelligence
 from quarantine import QuarantineManager
 from utils import log_activity, calculate_risk_score, allowed_file
+
+# Enhanced imports for new features
+try:
+    from tasks import scan_file_async, scan_url_async
+    from gdpr_compliance import gdpr_manager, ConsentType
+    from behavioral_analysis import behavioral_engine
+    ENHANCED_FEATURES_ENABLED = True
+except ImportError as e:
+    logging.warning(f"Enhanced features not available: {e}")
+    ENHANCED_FEATURES_ENABLED = False
 
 # Initialize components
 file_scanner = FileScanner()
@@ -40,52 +53,79 @@ def index():
     return render_template('index.html', stats=stats, recent_scans=recent_scans)
 
 @app.route('/upload', methods=['POST'])
+@limiter.limit("10 per minute")
 def upload_file():
-    """Handle file upload and scanning"""
+    """Handle file upload and scanning with async processing"""
     try:
         if 'files' not in request.files:
             flash('No files selected', 'error')
             return redirect(url_for('index'))
         
         files = request.files.getlist('files')
-        scan_results = []
         
-        for file in files:
-            if file and file.filename and allowed_file(file.filename):
-                filename = secure_filename(file.filename)
-                filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-                file.save(filepath)
-                
-                # Scan the file
-                scan_result = file_scanner.scan_file(filepath, filename)
-                
-                # Save scan result to database
-                db_result = ScanResult(
-                    filename=scan_result['filename'],
-                    file_hash=scan_result['file_hash'],
-                    file_size=scan_result['file_size'],
-                    scan_type='file',
-                    risk_score=scan_result['risk_score'],
-                    threat_level=scan_result['threat_level'],
-                    detection_details=scan_result['detection_details'],
-                    original_path=filepath
-                )
-                
-                db.session.add(db_result)
-                db.session.commit()
-                
-                # Quarantine if malicious
-                if scan_result['threat_level'] == 'malicious':
-                    quarantine_manager.quarantine_file(filepath, db_result.id)
-                    db_result.quarantined = True
+        if ENHANCED_FEATURES_ENABLED:
+            # Use async scanning with real-time updates
+            scan_tasks = []
+            
+            for file in files:
+                if file and file.filename and allowed_file(file.filename):
+                    filename = secure_filename(file.filename)
+                    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                    file.save(filepath)
+                    
+                    # Start async scan
+                    task = scan_file_async.delay(filepath, filename)
+                    scan_tasks.append({
+                        'task_id': task.id,
+                        'filename': filename,
+                        'status': 'processing'
+                    })
+                    
+                    # Log activity
+                    log_activity('file_scan_started', f'Started scan for file: {filename}', request.remote_addr, request.user_agent.string)
+            
+            return render_template('async_scan_results.html', tasks=scan_tasks, scan_type='file')
+        
+        else:
+            # Fallback to synchronous scanning
+            scan_results = []
+            
+            for file in files:
+                if file and file.filename and allowed_file(file.filename):
+                    filename = secure_filename(file.filename)
+                    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                    file.save(filepath)
+                    
+                    # Scan the file
+                    scan_result = file_scanner.scan_file(filepath, filename)
+                    
+                    # Save scan result to database
+                    db_result = ScanResult(
+                        filename=scan_result['filename'],
+                        file_hash=scan_result['file_hash'],
+                        file_size=scan_result['file_size'],
+                        scan_type='file',
+                        risk_score=scan_result['risk_score'],
+                        threat_level=scan_result['threat_level'],
+                        detection_details=scan_result['detection_details'],
+                        original_path=filepath
+                    )
+                    
+                    db.session.add(db_result)
                     db.session.commit()
-                
-                scan_results.append(scan_result)
-                
-                # Log activity
-                log_activity('file_scan', f'Scanned file: {filename}', request.remote_addr, request.user_agent.string)
-        
-        return render_template('scan_results.html', results=scan_results, scan_type='file')
+                    
+                    # Quarantine if malicious
+                    if scan_result['threat_level'] == 'malicious':
+                        quarantine_manager.quarantine_file(filepath, db_result.id)
+                        db_result.quarantined = True
+                        db.session.commit()
+                    
+                    scan_results.append(scan_result)
+                    
+                    # Log activity
+                    log_activity('file_scan', f'Scanned file: {filename}', request.remote_addr, request.user_agent.string)
+            
+            return render_template('scan_results.html', results=scan_results, scan_type='file')
         
     except Exception as e:
         logging.error(f"Error in file upload: {str(e)}")
@@ -93,8 +133,9 @@ def upload_file():
         return redirect(url_for('index'))
 
 @app.route('/scan-url', methods=['POST'])
+@limiter.limit("20 per minute")
 def scan_url():
-    """Handle URL scanning"""
+    """Handle URL scanning with async processing"""
     try:
         url = request.form.get('url', '').strip()
         
@@ -102,26 +143,37 @@ def scan_url():
             flash('Please enter a URL', 'error')
             return redirect(url_for('index'))
         
-        # Scan the URL
-        scan_result = threat_intel.analyze_url(url)
-        
-        # Save scan result to database
-        db_result = URLScan(
-            url=scan_result['url'],
-            domain=scan_result['domain'],
-            risk_score=scan_result['risk_score'],
-            threat_level=scan_result['threat_level'],
-            detection_details=scan_result['detection_details'],
-            threat_intel_data=scan_result.get('threat_intel_data', '')
-        )
-        
-        db.session.add(db_result)
-        db.session.commit()
-        
-        # Log activity
-        log_activity('url_scan', f'Scanned URL: {url}', request.remote_addr, request.user_agent.string)
-        
-        return render_template('scan_results.html', results=[scan_result], scan_type='url')
+        if ENHANCED_FEATURES_ENABLED:
+            # Use async URL scanning
+            task = scan_url_async.delay(url)
+            
+            # Log activity
+            log_activity('url_scan_started', f'Started URL scan: {url}', request.remote_addr, request.user_agent.string)
+            
+            return render_template('async_scan_results.html', 
+                                 tasks=[{'task_id': task.id, 'url': url, 'status': 'processing'}], 
+                                 scan_type='url')
+        else:
+            # Fallback to synchronous scanning
+            scan_result = threat_intel.analyze_url(url)
+            
+            # Save scan result to database
+            db_result = URLScan(
+                url=scan_result['url'],
+                domain=scan_result['domain'],
+                risk_score=scan_result['risk_score'],
+                threat_level=scan_result['threat_level'],
+                detection_details=scan_result['detection_details'],
+                threat_intel_data=scan_result.get('threat_intel_data', '')
+            )
+            
+            db.session.add(db_result)
+            db.session.commit()
+            
+            # Log activity
+            log_activity('url_scan', f'Scanned URL: {url}', request.remote_addr, request.user_agent.string)
+            
+            return render_template('scan_results.html', results=[scan_result], scan_type='url')
         
     except Exception as e:
         logging.error(f"Error in URL scan: {str(e)}")
@@ -252,3 +304,232 @@ def not_found(e):
 def server_error(e):
     logging.error(f"Server error: {str(e)}")
     return render_template('500.html'), 500
+
+
+# Enhanced API endpoints for real-time features
+@app.route('/api/task-status/<task_id>')
+def get_task_status(task_id):
+    """Get status of async task"""
+    if not ENHANCED_FEATURES_ENABLED:
+        return jsonify({'error': 'Enhanced features not available'}), 503
+    
+    try:
+        from celery.result import AsyncResult
+        task = AsyncResult(task_id)
+        
+        if task.state == 'PENDING':
+            response = {
+                'state': task.state,
+                'progress': 0,
+                'message': 'Task is waiting to be processed...'
+            }
+        elif task.state != 'FAILURE':
+            response = {
+                'state': task.state,
+                'progress': task.info.get('progress', 0) if hasattr(task, 'info') and task.info else 100,
+                'message': task.info.get('message', '') if hasattr(task, 'info') and task.info else 'Processing...'
+            }
+            if task.state == 'SUCCESS':
+                response['result'] = task.result
+        else:
+            response = {
+                'state': task.state,
+                'progress': 0,
+                'message': str(task.info)
+            }
+        
+        return jsonify(response)
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/privacy')
+def privacy_dashboard():
+    """Privacy management dashboard"""
+    if not ENHANCED_FEATURES_ENABLED:
+        flash('Privacy features not available', 'warning')
+        return redirect(url_for('index'))
+    
+    try:
+        # Generate privacy report
+        privacy_report = gdpr_manager.generate_privacy_report()
+        return render_template('privacy_dashboard.html', report=privacy_report)
+        
+    except Exception as e:
+        logging.error(f"Error loading privacy dashboard: {str(e)}")
+        flash('Error loading privacy dashboard', 'error')
+        return redirect(url_for('index'))
+
+
+@app.route('/privacy/request-data', methods=['POST'])
+@limiter.limit("3 per hour")
+def request_data_access():
+    """Handle data access request"""
+    if not ENHANCED_FEATURES_ENABLED:
+        return jsonify({'error': 'Privacy features not available'}), 503
+    
+    try:
+        user_ip = request.remote_addr
+        request_id = gdpr_manager.handle_data_access_request(user_ip)
+        
+        if request_id:
+            flash(f'Data access request submitted. Request ID: {request_id}', 'success')
+            log_activity('data_access_request', f'Data access requested: {request_id}', user_ip, request.user_agent.string)
+        else:
+            flash('Failed to process data access request', 'error')
+        
+        return redirect(url_for('privacy_dashboard'))
+        
+    except Exception as e:
+        logging.error(f"Error processing data access request: {str(e)}")
+        flash('Error processing request', 'error')
+        return redirect(url_for('privacy_dashboard'))
+
+
+@app.route('/privacy/delete-data', methods=['POST'])
+@limiter.limit("1 per day")
+def request_data_deletion():
+    """Handle data deletion request"""
+    if not ENHANCED_FEATURES_ENABLED:
+        return jsonify({'error': 'Privacy features not available'}), 503
+    
+    try:
+        user_ip = request.remote_addr
+        request_id = gdpr_manager.handle_data_deletion_request(user_ip)
+        
+        if request_id:
+            flash(f'Data deletion request submitted. Request ID: {request_id}', 'success')
+            log_activity('data_deletion_request', f'Data deletion requested: {request_id}', user_ip, request.user_agent.string)
+        else:
+            flash('Failed to process data deletion request', 'error')
+        
+        return redirect(url_for('privacy_dashboard'))
+        
+    except Exception as e:
+        logging.error(f"Error processing data deletion request: {str(e)}")
+        flash('Error processing request', 'error')
+        return redirect(url_for('privacy_dashboard'))
+
+
+@app.route('/behavioral-analysis')
+def behavioral_analysis():
+    """Behavioral analysis dashboard"""
+    if not ENHANCED_FEATURES_ENABLED:
+        flash('Behavioral analysis not available', 'warning')
+        return redirect(url_for('index'))
+    
+    try:
+        # Get recent behavioral patterns
+        patterns = behavioral_engine.analyze_system_behavior()
+        report = behavioral_engine.generate_behavioral_report(patterns)
+        
+        return render_template('behavioral_analysis.html', patterns=patterns, report=report)
+        
+    except Exception as e:
+        logging.error(f"Error loading behavioral analysis: {str(e)}")
+        flash('Error loading behavioral analysis', 'error')
+        return redirect(url_for('index'))
+
+
+@app.route('/api/behavioral-patterns')
+def get_behavioral_patterns():
+    """API endpoint for behavioral patterns"""
+    if not ENHANCED_FEATURES_ENABLED:
+        return jsonify({'error': 'Behavioral analysis not available'}), 503
+    
+    try:
+        patterns = behavioral_engine.analyze_system_behavior()
+        report = behavioral_engine.generate_behavioral_report(patterns)
+        
+        return jsonify({
+            'patterns': [{
+                'type': p.pattern_type,
+                'confidence': p.confidence,
+                'description': p.description,
+                'risk_level': p.risk_level,
+                'timestamp': p.timestamp.isoformat()
+            } for p in patterns],
+            'report': report
+        })
+        
+    except Exception as e:
+        logging.error(f"Error getting behavioral patterns: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/health')
+def health_check():
+    """Health check endpoint for container orchestration"""
+    try:
+        # Check database connectivity
+        db.session.execute('SELECT 1')
+        
+        # Basic system status
+        health_status = {
+            'status': 'healthy',
+            'timestamp': datetime.utcnow().isoformat(),
+            'version': '2.0.0',
+            'components': {
+                'database': 'operational',
+                'ml_models': 'loaded' if ENHANCED_FEATURES_ENABLED else 'basic',
+                'security_features': 'active',
+                'websocket': 'enabled' if ENHANCED_FEATURES_ENABLED else 'disabled'
+            },
+            'features': {
+                'enhanced_features': ENHANCED_FEATURES_ENABLED,
+                'deep_learning': app.config.get('ENABLE_DEEP_LEARNING', False),
+                'behavioral_analysis': app.config.get('BEHAVIORAL_ANALYSIS', False),
+                'gdpr_compliance': app.config.get('ENABLE_GDPR_COMPLIANCE', False)
+            }
+        }
+        
+        return jsonify(health_status)
+        
+    except Exception as e:
+        logging.error(f"Health check failed: {str(e)}")
+        return jsonify({
+            'status': 'unhealthy',
+            'error': str(e),
+            'timestamp': datetime.utcnow().isoformat()
+        }), 503
+
+
+@app.route('/deployment-status')
+def deployment_status():
+    """Deployment and system status page"""
+    try:
+        # System information
+        system_info = {
+            'application': 'SmartFileGuardian',
+            'version': '2.0.0 - Advanced Edition',
+            'deployment_date': datetime.utcnow().strftime('%Y-%m-%d'),
+            'python_version': '3.11',
+            'framework': 'Flask + SQLAlchemy + SocketIO',
+            'database': 'PostgreSQL' if 'postgresql' in app.config['SQLALCHEMY_DATABASE_URI'] else 'SQLite',
+            'enhanced_features': ENHANCED_FEATURES_ENABLED,
+            'security_features': {
+                'csrf_protection': True,
+                'rate_limiting': True,
+                'input_validation': True,
+                'secure_headers': True
+            },
+            'ml_capabilities': {
+                'tensorflow': app.config.get('ENABLE_DEEP_LEARNING', False),
+                'pytorch': app.config.get('ENABLE_DEEP_LEARNING', False),
+                'scikit_learn': True,
+                'ensemble_models': ENHANCED_FEATURES_ENABLED
+            },
+            'privacy_compliance': {
+                'gdpr_ready': app.config.get('ENABLE_GDPR_COMPLIANCE', False),
+                'ccpa_ready': app.config.get('ENABLE_GDPR_COMPLIANCE', False),
+                'data_retention': f"{app.config.get('DATA_RETENTION_DAYS', 90)} days",
+                'automated_cleanup': ENHANCED_FEATURES_ENABLED
+            }
+        }
+        
+        return render_template('deployment_status.html', info=system_info)
+        
+    except Exception as e:
+        logging.error(f"Error loading deployment status: {str(e)}")
+        return jsonify({'error': str(e)}), 500
