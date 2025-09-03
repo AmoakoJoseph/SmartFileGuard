@@ -1,0 +1,277 @@
+{% extends "base.html" %}
+
+{% block title %}Scan Results - SmartFileGuardian{% endblock %}
+
+{% block content %}
+<div class="container">
+    <!-- Results Header -->
+    <div class="row mb-4">
+        <div class="col">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h2 mb-2">
+                        <i class="fas fa-clipboard-list me-2"></i>
+                        Scan Results
+                    </h1>
+                    <p class="text-muted">
+                        {% if scan_type == 'file' %}
+                            File analysis completed. {{ results|length }} file(s) processed.
+                        {% else %}
+                            URL analysis completed.
+                        {% endif %}
+                    </p>
+                </div>
+                <div>
+                    <a href="{{ url_for('index') }}" class="btn btn-primary">
+                        <i class="fas fa-plus me-1"></i>
+                        Scan More
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Results Cards -->
+    <div class="row">
+        {% for result in results %}
+        <div class="col-12 mb-4">
+            <div class="card border-{{ 'success' if result.threat_level == 'safe' else 'warning' if result.threat_level == 'suspicious' else 'danger' }}">
+                <div class="card-header bg-{{ 'success' if result.threat_level == 'safe' else 'warning' if result.threat_level == 'suspicious' else 'danger' }} text-white">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-{{ 'file' if scan_type == 'file' else 'globe' }} me-2"></i>
+                                {% if scan_type == 'file' %}
+                                    {{ result.filename }}
+                                {% else %}
+                                    {{ result.url }}
+                                {% endif %}
+                            </h5>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <span class="badge bg-light text-dark fs-6">
+                                <i class="fas fa-{{ 'shield-alt' if result.threat_level == 'safe' else 'exclamation-triangle' if result.threat_level == 'suspicious' else 'skull-crossbones' }} me-1"></i>
+                                {{ result.threat_level.title() }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card-body">
+                    <div class="row">
+                        <!-- Basic Information -->
+                        <div class="col-md-6 mb-3">
+                            <h6 class="text-muted mb-3">
+                                <i class="fas fa-info-circle me-1"></i>
+                                Basic Information
+                            </h6>
+                            
+                            {% if scan_type == 'file' %}
+                            <div class="mb-2">
+                                <strong>File Size:</strong> 
+                                <span class="text-muted">{{ (result.file_size / 1024 / 1024) | round(2) }} MB</span>
+                            </div>
+                            <div class="mb-2">
+                                <strong>File Hash:</strong> 
+                                <span class="text-muted font-monospace small">{{ result.file_hash[:16] }}...</span>
+                            </div>
+                            <div class="mb-2">
+                                <strong>File Type:</strong> 
+                                <span class="text-muted">{{ result.get('file_type', 'Unknown') }}</span>
+                            </div>
+                            {% else %}
+                            <div class="mb-2">
+                                <strong>Domain:</strong> 
+                                <span class="text-muted">{{ result.domain }}</span>
+                            </div>
+                            {% endif %}
+                            
+                            <div class="mb-2">
+                                <strong>Scan Time:</strong> 
+                                <span class="text-muted">{{ result.scan_timestamp }}</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Risk Assessment -->
+                        <div class="col-md-6 mb-3">
+                            <h6 class="text-muted mb-3">
+                                <i class="fas fa-exclamation-triangle me-1"></i>
+                                Risk Assessment
+                            </h6>
+                            
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between mb-1">
+                                    <span><strong>Risk Score:</strong></span>
+                                    <span>{{ (result.risk_score * 100) | round(1) }}%</span>
+                                </div>
+                                <div class="progress" style="height: 25px;">
+                                    <div class="progress-bar bg-{{ 'success' if result.risk_score < 0.3 else 'warning' if result.risk_score < 0.7 else 'danger' }}" 
+                                         style="width: {{ (result.risk_score * 100) }}%">
+                                        {{ (result.risk_score * 100) | round(1) }}%
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="threat-level-indicator">
+                                <div class="d-flex align-items-center">
+                                    <i class="fas fa-{{ 'shield-alt text-success' if result.threat_level == 'safe' else 'exclamation-triangle text-warning' if result.threat_level == 'suspicious' else 'skull-crossbones text-danger' }} fa-2x me-3"></i>
+                                    <div>
+                                        <h6 class="mb-0">{{ result.threat_level.title() }}</h6>
+                                        <small class="text-muted">
+                                            {% if result.threat_level == 'safe' %}
+                                                No threats detected. File appears to be clean.
+                                            {% elif result.threat_level == 'suspicious' %}
+                                                Potentially suspicious content detected. Review recommended.
+                                            {% else %}
+                                                Malicious content detected. File has been quarantined.
+                                            {% endif %}
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Detection Details -->
+                    {% if result.detection_details %}
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <h6 class="text-muted mb-3">
+                                <i class="fas fa-search me-1"></i>
+                                Detection Details
+                            </h6>
+                            
+                            <div class="alert alert-{{ 'info' if result.threat_level == 'safe' else 'warning' if result.threat_level == 'suspicious' else 'danger' }}">
+                                <ul class="mb-0">
+                                    {% for detail in result.detection_details %}
+                                    <li>{{ detail }}</li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Threat Intelligence Data (for URLs) -->
+                    {% if scan_type == 'url' and result.get('threat_intel_data') %}
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <h6 class="text-muted mb-3">
+                                <i class="fas fa-shield-alt me-1"></i>
+                                Threat Intelligence Sources
+                            </h6>
+                            
+                            <div class="row">
+                                {% for source, data in result.threat_intel_data.items() %}
+                                <div class="col-md-4 mb-2">
+                                    <div class="card bg-light">
+                                        <div class="card-body p-3">
+                                            <h6 class="card-title small mb-1">{{ source.replace('_', ' ').title() }}</h6>
+                                            <p class="card-text small text-muted mb-0">
+                                                {% if data.is_threat %}
+                                                    <i class="fas fa-exclamation-triangle text-warning me-1"></i>
+                                                    Threat detected
+                                                {% else %}
+                                                    <i class="fas fa-check text-success me-1"></i>
+                                                    Clean
+                                                {% endif %}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Action Buttons -->
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <div class="d-flex gap-2 flex-wrap">
+                                {% if scan_type == 'file' and result.threat_level == 'malicious' %}
+                                <button class="btn btn-warning" disabled>
+                                    <i class="fas fa-lock me-1"></i>
+                                    File Quarantined
+                                </button>
+                                {% endif %}
+                                
+                                <a href="{{ url_for('history') }}" class="btn btn-outline-primary">
+                                    <i class="fas fa-history me-1"></i>
+                                    View in History
+                                </a>
+                                
+                                {% if result.threat_level != 'safe' %}
+                                <a href="{{ url_for('quarantine') }}" class="btn btn-outline-warning">
+                                    <i class="fas fa-shield-alt me-1"></i>
+                                    Manage Quarantine
+                                </a>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Summary -->
+    <div class="row mt-4">
+        <div class="col">
+            <div class="card bg-light">
+                <div class="card-body">
+                    <h6 class="card-title">
+                        <i class="fas fa-chart-pie me-2"></i>
+                        Scan Summary
+                    </h6>
+                    
+                    <div class="row text-center">
+                        <div class="col-md-3">
+                            <div class="text-success">
+                                <i class="fas fa-shield-alt fa-2x mb-2"></i>
+                                <h5>{{ results | selectattr('threat_level', 'equalto', 'safe') | list | length }}</h5>
+                                <span class="text-muted">Safe</span>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-warning">
+                                <i class="fas fa-exclamation-triangle fa-2x mb-2"></i>
+                                <h5>{{ results | selectattr('threat_level', 'equalto', 'suspicious') | list | length }}</h5>
+                                <span class="text-muted">Suspicious</span>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-danger">
+                                <i class="fas fa-skull-crossbones fa-2x mb-2"></i>
+                                <h5>{{ results | selectattr('threat_level', 'equalto', 'malicious') | list | length }}</h5>
+                                <span class="text-muted">Malicious</span>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-primary">
+                                <i class="fas fa-clock fa-2x mb-2"></i>
+                                <h5>{{ results | length }}</h5>
+                                <span class="text-muted">Total Scanned</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Auto-refresh threat intelligence data for URLs
+    {% if scan_type == 'url' %}
+    setTimeout(function() {
+        console.log('Threat intelligence analysis completed');
+    }, 2000);
+    {% endif %}
+});
+</script>
+{% endblock %}

@@ -1,0 +1,461 @@
+{% extends "base.html" %}
+
+{% block title %}Scan History - SmartFileGuardian{% endblock %}
+
+{% block content %}
+<div class="container">
+    <!-- History Header -->
+    <div class="row mb-4">
+        <div class="col">
+            <h1 class="h2 mb-3">
+                <i class="fas fa-history text-info me-2"></i>
+                Scan History
+            </h1>
+            <p class="lead text-muted">
+                View detailed history of all file and URL scans performed by the system.
+            </p>
+        </div>
+    </div>
+
+    <!-- Filter Controls -->
+    <div class="row mb-4">
+        <div class="col">
+            <div class="card">
+                <div class="card-body">
+                    <form method="GET" class="row g-3">
+                        <div class="col-md-3">
+                            <label for="threat_level" class="form-label">Threat Level</label>
+                            <select class="form-select" id="threat_level" name="threat_level">
+                                <option value="">All Levels</option>
+                                <option value="safe" {{ 'selected' if request.args.get('threat_level') == 'safe' }}>Safe</option>
+                                <option value="suspicious" {{ 'selected' if request.args.get('threat_level') == 'suspicious' }}>Suspicious</option>
+                                <option value="malicious" {{ 'selected' if request.args.get('threat_level') == 'malicious' }}>Malicious</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="scan_type" class="form-label">Scan Type</label>
+                            <select class="form-select" id="scan_type" name="scan_type">
+                                <option value="">All Types</option>
+                                <option value="file" {{ 'selected' if request.args.get('scan_type') == 'file' }}>File Scans</option>
+                                <option value="url" {{ 'selected' if request.args.get('scan_type') == 'url' }}>URL Scans</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="search" class="form-label">Search</label>
+                            <input type="text" class="form-control" id="search" name="search" 
+                                   placeholder="Search by filename or URL..." 
+                                   value="{{ request.args.get('search', '') }}">
+                        </div>
+                        <div class="col-md-2 d-flex align-items-end">
+                            <button type="submit" class="btn btn-primary me-2">
+                                <i class="fas fa-search me-1"></i>
+                                Filter
+                            </button>
+                            <a href="{{ url_for('history') }}" class="btn btn-outline-secondary">
+                                <i class="fas fa-times me-1"></i>
+                                Clear
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- File Scans -->
+    <div class="row mb-4">
+        <div class="col">
+            <div class="card">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-file-alt me-2"></i>
+                            File Scans
+                        </h5>
+                        <span class="badge bg-primary">{{ file_scans.total if file_scans.total else 0 }} total</span>
+                    </div>
+                </div>
+                
+                {% if file_scans.items %}
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-striped mb-0">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>File Information</th>
+                                    <th>Size</th>
+                                    <th>Threat Level</th>
+                                    <th>Risk Score</th>
+                                    <th>Scan Date</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for scan in file_scans.items %}
+                                <tr id="scan-{{ scan.id }}">
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <i class="fas fa-file-alt text-muted me-2"></i>
+                                            <div>
+                                                <div class="fw-bold">{{ scan.filename }}</div>
+                                                <small class="text-muted font-monospace">
+                                                    {{ scan.file_hash[:16] }}...
+                                                </small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="text-muted">{{ (scan.file_size / 1024 / 1024) | round(2) }} MB</span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-{{ 'success' if scan.threat_level == 'safe' else 'warning' if scan.threat_level == 'suspicious' else 'danger' }}">
+                                            <i class="fas fa-{{ 'shield-alt' if scan.threat_level == 'safe' else 'exclamation-triangle' if scan.threat_level == 'suspicious' else 'skull-crossbones' }} me-1"></i>
+                                            {{ scan.threat_level.title() }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="progress me-2" style="width: 60px; height: 15px;">
+                                                <div class="progress-bar bg-{{ 'success' if scan.risk_score < 0.3 else 'warning' if scan.risk_score < 0.7 else 'danger' }}" 
+                                                     style="width: {{ (scan.risk_score * 100) }}%">
+                                                </div>
+                                            </div>
+                                            <span class="small">{{ (scan.risk_score * 100) | round(1) }}%</span>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div>{{ scan.scan_timestamp.strftime('%Y-%m-%d') }}</div>
+                                        <small class="text-muted">{{ scan.scan_timestamp.strftime('%H:%M:%S') }}</small>
+                                    </td>
+                                    <td>
+                                        {% if scan.quarantined %}
+                                            <span class="badge bg-warning">
+                                                <i class="fas fa-lock me-1"></i>
+                                                Quarantined
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-success">
+                                                <i class="fas fa-check me-1"></i>
+                                                Active
+                                            </span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <button type="button" class="btn btn-outline-info" 
+                                                    onclick="viewScanDetails({{ scan.id }}, 'file')">
+                                                <i class="fas fa-eye"></i>
+                                            </button>
+                                            {% if scan.quarantined %}
+                                            <a href="{{ url_for('quarantine') }}" class="btn btn-outline-warning">
+                                                <i class="fas fa-lock"></i>
+                                            </a>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <!-- Pagination -->
+                {% if file_scans.pages > 1 %}
+                <div class="card-footer">
+                    <nav>
+                        <ul class="pagination justify-content-center mb-0">
+                            {% if file_scans.has_prev %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('history', page=file_scans.prev_num) }}">
+                                    <i class="fas fa-chevron-left"></i>
+                                </a>
+                            </li>
+                            {% endif %}
+                            
+                            {% for page_num in file_scans.iter_pages() %}
+                                {% if page_num %}
+                                    {% if page_num != file_scans.page %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="{{ url_for('history', page=page_num) }}">{{ page_num }}</a>
+                                    </li>
+                                    {% else %}
+                                    <li class="page-item active">
+                                        <span class="page-link">{{ page_num }}</span>
+                                    </li>
+                                    {% endif %}
+                                {% else %}
+                                <li class="page-item disabled">
+                                    <span class="page-link">...</span>
+                                </li>
+                                {% endif %}
+                            {% endfor %}
+                            
+                            {% if file_scans.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('history', page=file_scans.next_num) }}">
+                                    <i class="fas fa-chevron-right"></i>
+                                </a>
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                </div>
+                {% endif %}
+                
+                {% else %}
+                <div class="card-body text-center py-4">
+                    <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">No File Scans Found</h5>
+                    <p class="text-muted">No file scans match your current filters.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- URL Scans -->
+    <div class="row mb-4">
+        <div class="col">
+            <div class="card">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-globe me-2"></i>
+                            URL Scans
+                        </h5>
+                        <span class="badge bg-primary">{{ url_scans|length }} recent</span>
+                    </div>
+                </div>
+                
+                {% if url_scans %}
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-striped mb-0">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>URL</th>
+                                    <th>Domain</th>
+                                    <th>Threat Level</th>
+                                    <th>Risk Score</th>
+                                    <th>Scan Date</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for scan in url_scans %}
+                                <tr>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <i class="fas fa-globe text-muted me-2"></i>
+                                            <div style="max-width: 300px;">
+                                                <div class="fw-bold text-truncate">{{ scan.url }}</div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="text-muted">{{ scan.domain }}</span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-{{ 'success' if scan.threat_level == 'safe' else 'warning' if scan.threat_level == 'suspicious' else 'danger' }}">
+                                            <i class="fas fa-{{ 'shield-alt' if scan.threat_level == 'safe' else 'exclamation-triangle' if scan.threat_level == 'suspicious' else 'skull-crossbones' }} me-1"></i>
+                                            {{ scan.threat_level.title() }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="progress me-2" style="width: 60px; height: 15px;">
+                                                <div class="progress-bar bg-{{ 'success' if scan.risk_score < 0.3 else 'warning' if scan.risk_score < 0.7 else 'danger' }}" 
+                                                     style="width: {{ (scan.risk_score * 100) }}%">
+                                                </div>
+                                            </div>
+                                            <span class="small">{{ (scan.risk_score * 100) | round(1) }}%</span>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div>{{ scan.scan_timestamp.strftime('%Y-%m-%d') }}</div>
+                                        <small class="text-muted">{{ scan.scan_timestamp.strftime('%H:%M:%S') }}</small>
+                                    </td>
+                                    <td>
+                                        <button type="button" class="btn btn-outline-info btn-sm" 
+                                                onclick="viewScanDetails({{ scan.id }}, 'url')">
+                                            <i class="fas fa-eye me-1"></i>
+                                            Details
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                {% else %}
+                <div class="card-body text-center py-4">
+                    <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">No URL Scans Found</h5>
+                    <p class="text-muted">No URL scans have been performed yet.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- History Statistics -->
+    <div class="row">
+        <div class="col">
+            <div class="card bg-light">
+                <div class="card-body">
+                    <h6 class="card-title">
+                        <i class="fas fa-chart-bar me-2"></i>
+                        Scan Statistics
+                    </h6>
+                    
+                    <div class="row text-center">
+                        <div class="col-md-2">
+                            <div class="text-primary">
+                                <i class="fas fa-search fa-2x mb-2"></i>
+                                <h5>{{ (file_scans.total if file_scans.total else 0) + url_scans|length }}</h5>
+                                <span class="text-muted small">Total Scans</span>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="text-success">
+                                <i class="fas fa-shield-alt fa-2x mb-2"></i>
+                                <h5>
+                                    {{ (file_scans.items | selectattr('threat_level', 'equalto', 'safe') | list | length) + 
+                                       (url_scans | selectattr('threat_level', 'equalto', 'safe') | list | length) }}
+                                </h5>
+                                <span class="text-muted small">Safe</span>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="text-warning">
+                                <i class="fas fa-exclamation-triangle fa-2x mb-2"></i>
+                                <h5>
+                                    {{ (file_scans.items | selectattr('threat_level', 'equalto', 'suspicious') | list | length) + 
+                                       (url_scans | selectattr('threat_level', 'equalto', 'suspicious') | list | length) }}
+                                </h5>
+                                <span class="text-muted small">Suspicious</span>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="text-danger">
+                                <i class="fas fa-skull-crossbones fa-2x mb-2"></i>
+                                <h5>
+                                    {{ (file_scans.items | selectattr('threat_level', 'equalto', 'malicious') | list | length) + 
+                                       (url_scans | selectattr('threat_level', 'equalto', 'malicious') | list | length) }}
+                                </h5>
+                                <span class="text-muted small">Malicious</span>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="text-info">
+                                <i class="fas fa-file-alt fa-2x mb-2"></i>
+                                <h5>{{ file_scans.total if file_scans.total else 0 }}</h5>
+                                <span class="text-muted small">File Scans</span>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="text-secondary">
+                                <i class="fas fa-globe fa-2x mb-2"></i>
+                                <h5>{{ url_scans|length }}</h5>
+                                <span class="text-muted small">URL Scans</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Scan Details Modal -->
+<div class="modal fade" id="scanDetailsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-info-circle me-2"></i>
+                    Scan Details
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="scanDetailsContent">
+                <div class="text-center">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+function viewScanDetails(scanId, scanType) {
+    const modal = new bootstrap.Modal(document.getElementById('scanDetailsModal'));
+    const content = document.getElementById('scanDetailsContent');
+    
+    // Show loading spinner
+    content.innerHTML = `
+        <div class="text-center">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2">Loading scan details...</p>
+        </div>
+    `;
+    
+    modal.show();
+    
+    // Fetch scan details via API
+    fetch(`/api/scan-status/${scanId}`)
+        .then(response => response.json())
+        .then(data => {
+            content.innerHTML = `
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6 class="text-muted mb-3">Basic Information</h6>
+                        <table class="table table-sm">
+                            <tr><td><strong>ID:</strong></td><td>${data.id}</td></tr>
+                            <tr><td><strong>Filename:</strong></td><td>${data.filename}</td></tr>
+                            <tr><td><strong>Threat Level:</strong></td><td>
+                                <span class="badge bg-${data.threat_level === 'safe' ? 'success' : data.threat_level === 'suspicious' ? 'warning' : 'danger'}">
+                                    ${data.threat_level.charAt(0).toUpperCase() + data.threat_level.slice(1)}
+                                </span>
+                            </td></tr>
+                            <tr><td><strong>Risk Score:</strong></td><td>${(data.risk_score * 100).toFixed(1)}%</td></tr>
+                        </table>
+                    </div>
+                    <div class="col-md-6">
+                        <h6 class="text-muted mb-3">Status</h6>
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i>
+                            Scan completed successfully. Status: ${data.status}
+                        </div>
+                    </div>
+                </div>
+            `;
+        })
+        .catch(error => {
+            content.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    Error loading scan details. Please try again.
+                </div>
+            `;
+        });
+}
+
+// Auto-refresh page every 60 seconds
+setTimeout(function() {
+    location.reload();
+}, 60000);
+</script>
+{% endblock %}

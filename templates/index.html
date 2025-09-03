@@ -1,0 +1,381 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - SmartFileGuardian{% endblock %}
+
+{% block content %}
+<div class="container">
+    <!-- Dashboard Header -->
+    <div class="row mb-4">
+        <div class="col">
+            <h1 class="h2 mb-3">
+                <i class="fas fa-shield-alt text-primary me-2"></i>
+                Security Dashboard
+            </h1>
+            <p class="lead text-muted">
+                Upload files or analyze URLs for comprehensive threat detection and security analysis.
+            </p>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3 mb-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title">{{ stats.total_scans }}</h4>
+                            <p class="card-text">Total Scans</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-search fa-2x opacity-75"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3 mb-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title">{{ stats.safe_count }}</h4>
+                            <p class="card-text">Safe Files</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-check-circle fa-2x opacity-75"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3 mb-3">
+            <div class="card bg-warning text-dark">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title">{{ stats.suspicious_count }}</h4>
+                            <p class="card-text">Suspicious</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-exclamation-triangle fa-2x opacity-75"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3 mb-3">
+            <div class="card bg-danger text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title">{{ stats.malicious_count }}</h4>
+                            <p class="card-text">Threats Blocked</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-skull-crossbones fa-2x opacity-75"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scan Options -->
+    <div class="row">
+        <!-- File Upload Section -->
+        <div class="col-lg-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-file-upload me-2"></i>
+                        File Analysis
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form action="{{ url_for('upload_file') }}" method="post" enctype="multipart/form-data" id="fileUploadForm">
+                        <div class="upload-area border border-dashed border-2 rounded p-4 text-center mb-3" id="uploadArea">
+                            <i class="fas fa-cloud-upload-alt fa-3x text-muted mb-3"></i>
+                            <h6 class="text-muted mb-2">Drag and drop files here</h6>
+                            <p class="text-muted small mb-3">or click to select files</p>
+                            <input type="file" name="files" id="fileInput" multiple class="d-none" accept=".exe,.dll,.pdf,.doc,.docx,.zip,.rar,.js,.jar">
+                            <button type="button" class="btn btn-outline-primary" onclick="document.getElementById('fileInput').click()">
+                                <i class="fas fa-folder-open me-1"></i>
+                                Select Files
+                            </button>
+                        </div>
+                        
+                        <div id="fileList" class="mb-3"></div>
+                        
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary" id="uploadBtn" disabled>
+                                <i class="fas fa-shield-alt me-1"></i>
+                                Scan Files
+                            </button>
+                        </div>
+                    </form>
+                    
+                    <div class="mt-3">
+                        <small class="text-muted">
+                            <i class="fas fa-info-circle me-1"></i>
+                            Supported formats: EXE, DLL, PDF, DOC, ZIP, RAR, JS, JAR and more. Max size: 100MB per file.
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- URL Analysis Section -->
+        <div class="col-lg-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-globe me-2"></i>
+                        URL Analysis
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form action="{{ url_for('scan_url') }}" method="post" id="urlScanForm">
+                        <div class="mb-3">
+                            <label for="url" class="form-label">Enter URL to analyze</label>
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <i class="fas fa-link"></i>
+                                </span>
+                                <input type="url" class="form-control" id="url" name="url" 
+                                       placeholder="https://example.com" required>
+                            </div>
+                        </div>
+                        
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-search me-1"></i>
+                                Analyze URL
+                            </button>
+                        </div>
+                    </form>
+                    
+                    <div class="mt-3">
+                        <small class="text-muted">
+                            <i class="fas fa-info-circle me-1"></i>
+                            We'll check the URL against multiple threat intelligence databases and analyze for suspicious patterns.
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Scans -->
+    {% if recent_scans %}
+    <div class="row mt-4">
+        <div class="col">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-clock me-2"></i>
+                        Recent Scans
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>File</th>
+                                    <th>Size</th>
+                                    <th>Threat Level</th>
+                                    <th>Risk Score</th>
+                                    <th>Scan Time</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for scan in recent_scans %}
+                                <tr>
+                                    <td>
+                                        <i class="fas fa-file me-1"></i>
+                                        {{ scan.filename }}
+                                    </td>
+                                    <td>{{ (scan.file_size / 1024 / 1024) | round(2) }} MB</td>
+                                    <td>
+                                        <span class="badge bg-{{ 'success' if scan.threat_level == 'safe' else 'warning' if scan.threat_level == 'suspicious' else 'danger' }}">
+                                            <i class="fas fa-{{ 'shield-alt' if scan.threat_level == 'safe' else 'exclamation-triangle' if scan.threat_level == 'suspicious' else 'skull-crossbones' }} me-1"></i>
+                                            {{ scan.threat_level.title() }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="progress" style="width: 100px; height: 20px;">
+                                            <div class="progress-bar bg-{{ 'success' if scan.risk_score < 0.3 else 'warning' if scan.risk_score < 0.7 else 'danger' }}" 
+                                                 style="width: {{ (scan.risk_score * 100) }}%">
+                                                {{ (scan.risk_score * 100) | round(1) }}%
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>{{ scan.scan_timestamp.strftime('%Y-%m-%d %H:%M') }}</td>
+                                    <td>
+                                        {% if scan.quarantined %}
+                                            <span class="badge bg-warning">
+                                                <i class="fas fa-lock me-1"></i>
+                                                Quarantined
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-success">
+                                                <i class="fas fa-check me-1"></i>
+                                                Safe
+                                            </span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <div class="text-center mt-3">
+                        <a href="{{ url_for('history') }}" class="btn btn-outline-primary">
+                            <i class="fas fa-history me-1"></i>
+                            View All Scans
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Quick Actions -->
+    <div class="row mt-4">
+        <div class="col">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-bolt me-2"></i>
+                        Quick Actions
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3 mb-2">
+                            <a href="{{ url_for('quarantine') }}" class="btn btn-outline-warning w-100">
+                                <i class="fas fa-lock me-1"></i>
+                                Manage Quarantine
+                                {% if stats.quarantine_count > 0 %}
+                                <span class="badge bg-warning ms-2">{{ stats.quarantine_count }}</span>
+                                {% endif %}
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <a href="{{ url_for('history') }}" class="btn btn-outline-info w-100">
+                                <i class="fas fa-history me-1"></i>
+                                Scan History
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <a href="{{ url_for('monitoring') }}" class="btn btn-outline-success w-100">
+                                <i class="fas fa-chart-line me-1"></i>
+                                System Monitoring
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <button class="btn btn-outline-secondary w-100" onclick="location.reload()">
+                                <i class="fas fa-sync-alt me-1"></i>
+                                Refresh Dashboard
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // File upload handling
+    const fileInput = document.getElementById('fileInput');
+    const uploadArea = document.getElementById('uploadArea');
+    const fileList = document.getElementById('fileList');
+    const uploadBtn = document.getElementById('uploadBtn');
+    
+    // Drag and drop functionality
+    uploadArea.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        uploadArea.classList.add('border-primary', 'bg-light');
+    });
+    
+    uploadArea.addEventListener('dragleave', function(e) {
+        e.preventDefault();
+        uploadArea.classList.remove('border-primary', 'bg-light');
+    });
+    
+    uploadArea.addEventListener('drop', function(e) {
+        e.preventDefault();
+        uploadArea.classList.remove('border-primary', 'bg-light');
+        
+        const files = e.dataTransfer.files;
+        fileInput.files = files;
+        updateFileList();
+    });
+    
+    uploadArea.addEventListener('click', function() {
+        fileInput.click();
+    });
+    
+    fileInput.addEventListener('change', function() {
+        updateFileList();
+    });
+    
+    function updateFileList() {
+        const files = fileInput.files;
+        fileList.innerHTML = '';
+        
+        if (files.length > 0) {
+            uploadBtn.disabled = false;
+            
+            const listGroup = document.createElement('div');
+            listGroup.className = 'list-group';
+            
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                const item = document.createElement('div');
+                item.className = 'list-group-item d-flex justify-content-between align-items-center';
+                
+                const fileSize = (file.size / 1024 / 1024).toFixed(2);
+                item.innerHTML = `
+                    <div>
+                        <i class="fas fa-file me-2"></i>
+                        <strong>${file.name}</strong>
+                        <small class="text-muted ms-2">(${fileSize} MB)</small>
+                    </div>
+                    <span class="badge bg-primary rounded-pill">Ready</span>
+                `;
+                
+                listGroup.appendChild(item);
+            }
+            
+            fileList.appendChild(listGroup);
+        } else {
+            uploadBtn.disabled = true;
+        }
+    }
+    
+    // Form submission handling
+    document.getElementById('fileUploadForm').addEventListener('submit', function() {
+        uploadBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Scanning...';
+        uploadBtn.disabled = true;
+    });
+    
+    document.getElementById('urlScanForm').addEventListener('submit', function() {
+        const submitBtn = this.querySelector('button[type="submit"]');
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Analyzing...';
+        submitBtn.disabled = true;
+    });
+});
+</script>
+{% endblock %}

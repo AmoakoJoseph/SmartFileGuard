@@ -1,0 +1,327 @@
+{% extends "base.html" %}
+
+{% block title %}Quarantine Management - SmartFileGuardian{% endblock %}
+
+{% block content %}
+<div class="container">
+    <!-- Quarantine Header -->
+    <div class="row mb-4">
+        <div class="col">
+            <h1 class="h2 mb-3">
+                <i class="fas fa-lock text-warning me-2"></i>
+                Quarantine Management
+            </h1>
+            <p class="lead text-muted">
+                Manage files that have been quarantined due to security threats. You can restore safe files or permanently delete malicious ones.
+            </p>
+        </div>
+    </div>
+
+    <!-- Quarantine Statistics -->
+    <div class="row mb-4">
+        <div class="col-md-4 mb-3">
+            <div class="card bg-warning text-dark">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title">{{ quarantine_items|length }}</h4>
+                            <p class="card-text">Files in Quarantine</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-lock fa-2x opacity-75"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4 mb-3">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title">
+                                {{ quarantine_items | selectattr('1.threat_level', 'equalto', 'malicious') | list | length }}
+                            </h4>
+                            <p class="card-text">Malicious Files</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-skull-crossbones fa-2x opacity-75"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4 mb-3">
+            <div class="card bg-secondary text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title">
+                                {{ quarantine_items | selectattr('1.threat_level', 'equalto', 'suspicious') | list | length }}
+                            </h4>
+                            <p class="card-text">Suspicious Files</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-exclamation-triangle fa-2x opacity-75"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quarantine Items -->
+    {% if quarantine_items %}
+    <div class="row">
+        <div class="col">
+            <div class="card">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-list me-2"></i>
+                            Quarantined Files
+                        </h5>
+                        <div>
+                            <button class="btn btn-outline-secondary btn-sm" onclick="location.reload()">
+                                <i class="fas fa-sync-alt me-1"></i>
+                                Refresh
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-striped mb-0">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>File Information</th>
+                                    <th>Threat Level</th>
+                                    <th>Risk Score</th>
+                                    <th>Quarantine Date</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for quarantine_item, scan_result in quarantine_items %}
+                                <tr>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <i class="fas fa-file-alt text-muted me-2"></i>
+                                            <div>
+                                                <div class="fw-bold">{{ quarantine_item.filename }}</div>
+                                                <small class="text-muted">
+                                                    Size: {{ (scan_result.file_size / 1024 / 1024) | round(2) }} MB
+                                                </small>
+                                                <br>
+                                                <small class="text-muted font-monospace">
+                                                    Hash: {{ scan_result.file_hash[:16] }}...
+                                                </small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-{{ 'warning' if scan_result.threat_level == 'suspicious' else 'danger' }} fs-6">
+                                            <i class="fas fa-{{ 'exclamation-triangle' if scan_result.threat_level == 'suspicious' else 'skull-crossbones' }} me-1"></i>
+                                            {{ scan_result.threat_level.title() }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="progress me-2" style="width: 80px; height: 20px;">
+                                                <div class="progress-bar bg-{{ 'warning' if scan_result.risk_score < 0.7 else 'danger' }}" 
+                                                     style="width: {{ (scan_result.risk_score * 100) }}%">
+                                                </div>
+                                            </div>
+                                            <span class="small">{{ (scan_result.risk_score * 100) | round(1) }}%</span>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div>{{ quarantine_item.quarantine_timestamp.strftime('%Y-%m-%d') }}</div>
+                                        <small class="text-muted">{{ quarantine_item.quarantine_timestamp.strftime('%H:%M:%S') }}</small>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm" role="group">
+                                            <!-- Restore Button -->
+                                            {% if scan_result.threat_level == 'suspicious' %}
+                                            <button type="button" class="btn btn-outline-success" 
+                                                    onclick="confirmRestore({{ quarantine_item.id }}, '{{ quarantine_item.filename }}')">
+                                                <i class="fas fa-undo me-1"></i>
+                                                Restore
+                                            </button>
+                                            {% endif %}
+                                            
+                                            <!-- Delete Button -->
+                                            <button type="button" class="btn btn-outline-danger" 
+                                                    onclick="confirmDelete({{ quarantine_item.id }}, '{{ quarantine_item.filename }}')">
+                                                <i class="fas fa-trash me-1"></i>
+                                                Delete
+                                            </button>
+                                            
+                                            <!-- View Details -->
+                                            <button type="button" class="btn btn-outline-info" 
+                                                    onclick="viewDetails({{ scan_result.id }})">
+                                                <i class="fas fa-info-circle me-1"></i>
+                                                Details
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <!-- Empty State -->
+    <div class="row">
+        <div class="col">
+            <div class="card">
+                <div class="card-body text-center py-5">
+                    <i class="fas fa-shield-alt fa-4x text-success mb-3"></i>
+                    <h4 class="text-muted">No Files in Quarantine</h4>
+                    <p class="text-muted">
+                        Great! There are currently no files in quarantine. This means no threats have been detected recently.
+                    </p>
+                    <a href="{{ url_for('index') }}" class="btn btn-primary">
+                        <i class="fas fa-upload me-1"></i>
+                        Scan New Files
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Quarantine Guidelines -->
+    <div class="row mt-4">
+        <div class="col">
+            <div class="card bg-light">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Quarantine Management Guidelines
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6 class="text-success">
+                                <i class="fas fa-undo me-1"></i>
+                                Restoring Files
+                            </h6>
+                            <ul class="small text-muted">
+                                <li>Only restore files marked as "suspicious" if you're confident they're safe</li>
+                                <li>Malicious files cannot be restored for security reasons</li>
+                                <li>Restored files will be moved back to the uploads folder</li>
+                                <li>Consider re-scanning restored files for additional verification</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="text-danger">
+                                <i class="fas fa-trash me-1"></i>
+                                Deleting Files
+                            </h6>
+                            <ul class="small text-muted">
+                                <li>Deletion is permanent and cannot be undone</li>
+                                <li>Always delete confirmed malicious files</li>
+                                <li>Consider keeping suspicious files for further analysis</li>
+                                <li>Files are automatically cleaned up after 30 days</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Confirmation Modals -->
+<div class="modal fade" id="restoreModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-undo me-2"></i>
+                    Confirm File Restoration
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to restore <strong id="restoreFilename"></strong>?</p>
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    Make sure you trust this file before restoring it to your system.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <a href="#" id="restoreConfirmBtn" class="btn btn-success">
+                    <i class="fas fa-undo me-1"></i>
+                    Restore File
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-trash me-2"></i>
+                    Confirm File Deletion
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to permanently delete <strong id="deleteFilename"></strong>?</p>
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    This action cannot be undone. The file will be permanently removed from the system.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <a href="#" id="deleteConfirmBtn" class="btn btn-danger">
+                    <i class="fas fa-trash me-1"></i>
+                    Delete Permanently
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+function confirmRestore(itemId, filename) {
+    document.getElementById('restoreFilename').textContent = filename;
+    document.getElementById('restoreConfirmBtn').href = `/quarantine/restore/${itemId}`;
+    new bootstrap.Modal(document.getElementById('restoreModal')).show();
+}
+
+function confirmDelete(itemId, filename) {
+    document.getElementById('deleteFilename').textContent = filename;
+    document.getElementById('deleteConfirmBtn').href = `/quarantine/delete/${itemId}`;
+    new bootstrap.Modal(document.getElementById('deleteModal')).show();
+}
+
+function viewDetails(scanId) {
+    // This could open a modal with detailed scan information
+    // For now, redirect to history page
+    window.location.href = `/history#scan-${scanId}`;
+}
+
+// Auto-refresh every 30 seconds
+setTimeout(function() {
+    location.reload();
+}, 30000);
+</script>
+{% endblock %}
