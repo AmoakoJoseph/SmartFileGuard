@@ -53,7 +53,22 @@ function initializeFileUpload() {
     });
     
     uploadArea.addEventListener('drop', handleDrop, false);
-    uploadArea.addEventListener('click', () => fileInput.click());
+    
+    // Handle click on upload area (but not on the button)
+    uploadArea.addEventListener('click', (e) => {
+        if (e.target.id !== 'selectFilesBtn' && !e.target.closest('#selectFilesBtn')) {
+            fileInput.click();
+        }
+    });
+    
+    // Handle click on select files button
+    const selectFilesBtn = document.getElementById('selectFilesBtn');
+    if (selectFilesBtn) {
+        selectFilesBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            fileInput.click();
+        });
+    }
     
     if (fileInput) {
         fileInput.addEventListener('change', handleFileSelect);

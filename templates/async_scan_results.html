@@ -87,7 +87,7 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const socket = io();
-    const tasks = {{ tasks | tojsonfilter | safe }};
+    const tasks = {{ tasks | tojson | safe }};
     const connectionStatus = document.getElementById('connectionStatus');
     
     // Connection event handlers

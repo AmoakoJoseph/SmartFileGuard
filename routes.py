@@ -1,13 +1,16 @@
 from flask import render_template, request, jsonify, flash, redirect, url_for, send_file
 from flask_limiter import Limiter
 from flask_wtf import FlaskForm, CSRFProtect
+from flask_wtf.file import FileField, FileRequired, FileAllowed
+from wtforms import StringField, SubmitField
+from wtforms.validators import DataRequired, URL
 from werkzeug.utils import secure_filename
-import os
 import json
+import os
 import logging
 from datetime import datetime, timedelta
 
-from app import app, db, limiter, socketio
+from app import app, db, limiter, socketio, csrf
 from models import ScanResult, URLScan, QuarantineItem, ActivityLog, SystemMetrics
 from file_scanner import FileScanner
 from threat_intel import ThreatIntelligence
@@ -28,6 +31,17 @@ except ImportError as e:
 file_scanner = FileScanner()
 threat_intel = ThreatIntelligence()
 quarantine_manager = QuarantineManager()
+
+# Form classes
+class FileUploadForm(FlaskForm):
+    files = FileField('Files', 
+                     render_kw={'multiple': True, 'accept': '.exe,.dll,.pdf,.doc,.docx,.zip,.rar,.js,.jar'})
+    submit = SubmitField('Scan Files')
+
+class URLScanForm(FlaskForm):
+    url = StringField('URL', validators=[DataRequired(), URL()], 
+                     render_kw={'placeholder': 'https://example.com'})
+    submit = SubmitField('Analyze URL')
 
 @app.route('/')
 def index():
@@ -50,15 +64,22 @@ def index():
         'malicious_count': malicious_count
     }
     
-    return render_template('index.html', stats=stats, recent_scans=recent_scans)
+    # Create form instances
+    file_form = FileUploadForm()
+    url_form = URLScanForm()
+    
+    return render_template('index.html', stats=stats, recent_scans=recent_scans, 
+                         file_form=file_form, url_form=url_form)
 
 @app.route('/upload', methods=['POST'])
 @limiter.limit("10 per minute")
 def upload_file():
     """Handle file upload and scanning with async processing"""
     try:
-        if 'files' not in request.files:
-            flash('No files selected', 'error')
+        form = FileUploadForm()
+        
+        if not form.validate_on_submit():
+            flash(f'Form validation failed: {form.errors}', 'error')
             return redirect(url_for('index'))
         
         files = request.files.getlist('files')
@@ -73,18 +94,54 @@ def upload_file():
                     filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
                     file.save(filepath)
                     
-                    # Start async scan
-                    task = scan_file_async.delay(filepath, filename)
-                    scan_tasks.append({
-                        'task_id': task.id,
-                        'filename': filename,
-                        'status': 'processing'
-                    })
+                    # Run scan synchronously (for development without Redis)
+                    try:
+                        # Import the file scanner directly
+                        from file_scanner import FileScanner
+                        scanner = FileScanner()
+                        
+                        # Run the scan
+                        result = scanner.scan_file(filepath, filename)
+                        
+                        # Create scan result record
+                        scan_result = ScanResult(
+                            filename=filename,
+                            file_hash=result.get('file_hash', ''),
+                            file_size=result.get('file_size', 0),
+                            scan_type='file',
+                            threat_level=result.get('threat_level', 'unknown'),
+                            risk_score=result.get('risk_score', 0.0),
+                            detection_details=json.dumps(result.get('detection_details', [])),
+                            scan_timestamp=datetime.utcnow(),
+                            quarantined=result.get('quarantined', False),
+                            original_path=filepath
+                        )
+                        
+                        db.session.add(scan_result)
+                        db.session.commit()
+                        
+                        scan_tasks.append({
+                            'task_id': f'sync_{filename}',
+                            'filename': filename,
+                            'status': 'completed',
+                            'result': result
+                        })
+                        
+                    except Exception as scan_error:
+                        logging.error(f"Error during file scanning: {str(scan_error)}")
+                        import traceback
+                        logging.error(f"Traceback: {traceback.format_exc()}")
+                        scan_tasks.append({
+                            'task_id': f'sync_{filename}',
+                            'filename': filename,
+                            'status': 'failed',
+                            'error': str(scan_error)
+                        })
                     
                     # Log activity
                     log_activity('file_scan_started', f'Started scan for file: {filename}', request.remote_addr, request.user_agent.string)
             
-            return render_template('async_scan_results.html', tasks=scan_tasks, scan_type='file')
+            return render_template('sync_scan_results.html', tasks=scan_tasks, scan_type='file')
         
         else:
             # Fallback to synchronous scanning
@@ -129,7 +186,10 @@ def upload_file():
         
     except Exception as e:
         logging.error(f"Error in file upload: {str(e)}")
-        flash('An error occurred during file scanning', 'error')
+        logging.error(f"Exception type: {type(e).__name__}")
+        import traceback
+        logging.error(f"Traceback: {traceback.format_exc()}")
+        flash(f'An error occurred during file scanning: {str(e)}', 'error')
         return redirect(url_for('index'))
 
 @app.route('/scan-url', methods=['POST'])
@@ -137,11 +197,13 @@ def upload_file():
 def scan_url():
     """Handle URL scanning with async processing"""
     try:
-        url = request.form.get('url', '').strip()
+        form = URLScanForm()
         
-        if not url:
-            flash('Please enter a URL', 'error')
+        if not form.validate_on_submit():
+            flash(f'Form validation failed: {form.errors}', 'error')
             return redirect(url_for('index'))
+        
+        url = form.url.data.strip()
         
         if ENHANCED_FEATURES_ENABLED:
             # Use async URL scanning
@@ -188,6 +250,49 @@ def quarantine():
     ).filter(QuarantineItem.deleted == False, QuarantineItem.restored == False).all()
     
     return render_template('quarantine.html', quarantine_items=quarantine_items)
+
+@app.route('/quarantine', methods=['POST'])
+@csrf.exempt
+def quarantine_file():
+    """Quarantine a file via API"""
+    try:
+        data = request.get_json()
+        filename = data.get('filename')
+        action = data.get('action')
+        
+        if not filename:
+            return jsonify({'success': False, 'error': 'Filename required'}), 400
+        
+        # Find the scan result for this file
+        scan_result = ScanResult.query.filter_by(filename=filename).order_by(ScanResult.scan_timestamp.desc()).first()
+        
+        if not scan_result:
+            return jsonify({'success': False, 'error': 'File not found in scan results'}), 404
+        
+        if action == 'quarantine':
+            # Create quarantine item
+            quarantine_item = QuarantineItem(
+                scan_result_id=scan_result.id,
+                filename=filename,
+                original_path=scan_result.original_path,
+                quarantine_path=f"quarantine/{filename}",
+                quarantine_timestamp=datetime.utcnow()
+            )
+            
+            db.session.add(quarantine_item)
+            
+            # Update scan result
+            scan_result.quarantined = True
+            
+            db.session.commit()
+            
+            return jsonify({'success': True, 'message': 'File quarantined successfully'})
+        
+        return jsonify({'success': False, 'error': 'Invalid action'}), 400
+        
+    except Exception as e:
+        logging.error(f"Error quarantining file: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/quarantine/restore/<int:item_id>')
 def restore_file(item_id):

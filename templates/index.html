@@ -97,12 +97,13 @@
                 </div>
                 <div class="card-body">
                     <form action="{{ url_for('upload_file') }}" method="post" enctype="multipart/form-data" id="fileUploadForm">
+                        {{ file_form.hidden_tag() }}
                         <div class="upload-area border border-dashed border-2 rounded p-4 text-center mb-3" id="uploadArea">
                             <i class="fas fa-cloud-upload-alt fa-3x text-muted mb-3"></i>
                             <h6 class="text-muted mb-2">Drag and drop files here</h6>
                             <p class="text-muted small mb-3">or click to select files</p>
-                            <input type="file" name="files" id="fileInput" multiple class="d-none" accept=".exe,.dll,.pdf,.doc,.docx,.zip,.rar,.js,.jar">
-                            <button type="button" class="btn btn-outline-primary" onclick="document.getElementById('fileInput').click()">
+                            {{ file_form.files(class="d-none", id="fileInput") }}
+                            <button type="button" class="btn btn-outline-primary" id="selectFilesBtn">
                                 <i class="fas fa-folder-open me-1"></i>
                                 Select Files
                             </button>
@@ -111,10 +112,7 @@
                         <div id="fileList" class="mb-3"></div>
                         
                         <div class="d-grid">
-                            <button type="submit" class="btn btn-primary" id="uploadBtn" disabled>
-                                <i class="fas fa-shield-alt me-1"></i>
-                                Scan Files
-                            </button>
+                            {{ file_form.submit(class="btn btn-primary", id="uploadBtn") }}
                         </div>
                     </form>
                     
@@ -139,22 +137,19 @@
                 </div>
                 <div class="card-body">
                     <form action="{{ url_for('scan_url') }}" method="post" id="urlScanForm">
+                        {{ url_form.hidden_tag() }}
                         <div class="mb-3">
                             <label for="url" class="form-label">Enter URL to analyze</label>
                             <div class="input-group">
                                 <span class="input-group-text">
                                     <i class="fas fa-link"></i>
                                 </span>
-                                <input type="url" class="form-control" id="url" name="url" 
-                                       placeholder="https://example.com" required>
+                                {{ url_form.url(class="form-control", id="url") }}
                             </div>
                         </div>
                         
                         <div class="d-grid">
-                            <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-search me-1"></i>
-                                Analyze URL
-                            </button>
+                            {{ url_form.submit(class="btn btn-primary") }}
                         </div>
                     </form>
                     
