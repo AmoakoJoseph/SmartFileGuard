@@ -30,6 +30,7 @@ dependencies = [
     "marshmallow>=4.0.1",
     "flask-marshmallow>=1.3.0",
     "pydantic>=2.11.7",
+    "python-magic-bin>=0.4.14",
 ]
 
 [[tool.uv.index]]

@@ -35,19 +35,24 @@ app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
 # Initialize security extensions
 csrf = CSRFProtect(app)
+
+# Configure CSRF settings
+app.config['WTF_CSRF_ENABLED'] = True
+app.config['WTF_CSRF_TIME_LIMIT'] = 3600  # 1 hour
+app.config['WTF_CSRF_SSL_STRICT'] = False  # For development
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='eventlet')
 
-# Initialize rate limiter
+# Initialize rate limiter (using memory storage for development)
 limiter = Limiter(
     key_func=get_remote_address,
-    storage_uri="redis://localhost:6379" if redis_client else "memory://",
+    storage_uri="memory://",
     default_limits=["200 per day", "50 per hour"]
 )
 limiter.init_app(app)
 
-# Configure Celery for background tasks
-app.config['CELERY_BROKER_URL'] = 'redis://localhost:6379/0'
-app.config['CELERY_RESULT_BACKEND'] = 'redis://localhost:6379/0'
+# Configure Celery for background tasks (using memory backend for development)
+app.config['CELERY_BROKER_URL'] = 'memory://'
+app.config['CELERY_RESULT_BACKEND'] = 'cache+memory://'
 
 def make_celery(app):
     celery = Celery(
@@ -55,7 +60,11 @@ def make_celery(app):
         backend=app.config['CELERY_RESULT_BACKEND'],
         broker=app.config['CELERY_BROKER_URL']
     )
-    celery.conf.update(app.config)
+    # Use modern Celery configuration
+    celery.conf.update(
+        result_backend=app.config['CELERY_RESULT_BACKEND'],
+        broker_url=app.config['CELERY_BROKER_URL']
+    )
     return celery
 
 celery = make_celery(app)

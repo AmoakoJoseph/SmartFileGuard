@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+
+{% block title %}Scan Results - SmartFileGuardian{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row mb-4">
+        <div class="col">
+            <h1 class="h2 mb-3">
+                <i class="fas fa-shield-alt me-2"></i>
+                Scan Results
+            </h1>
+            <p class="lead text-muted">
+                Your {{ scan_type }} scan{{ 's' if tasks|length > 1 else '' }} {{ 'are' if tasks|length > 1 else 'is' }} complete.
+            </p>
+        </div>
+    </div>
+
+    <!-- Results Cards -->
+    <div class="row">
+        {% for task in tasks %}
+        <div class="col-12 mb-4">
+            <div class="card">
+                <div class="card-header {% if task.status == 'completed' %}bg-success{% elif task.status == 'failed' %}bg-danger{% else %}bg-info{% endif %} text-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-{{ 'file' if scan_type == 'file' else 'globe' }} me-2"></i>
+                            {% if scan_type == 'file' %}
+                                {{ task.filename }}
+                            {% else %}
+                                {{ task.url }}
+                            {% endif %}
+                        </h5>
+                        <span class="badge bg-light text-dark">
+                            {% if task.status == 'completed' %}
+                                Completed
+                            {% elif task.status == 'failed' %}
+                                Failed
+                            {% else %}
+                                Processing
+                            {% endif %}
+                        </span>
+                    </div>
+                </div>
+                
+                <div class="card-body">
+                    {% if task.status == 'completed' and task.result %}
+                        {% set result = task.result %}
+                        
+                        <!-- Threat Level Alert -->
+                        {% if result.threat_level == 'safe' %}
+                            <div class="alert alert-success">
+                                <i class="fas fa-shield-alt me-2"></i>
+                                <strong>Safe File</strong> - No threats detected
+                            </div>
+                        {% elif result.threat_level == 'suspicious' %}
+                            <div class="alert alert-warning">
+                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                <strong>Suspicious File</strong> - Potential security concerns detected
+                            </div>
+                        {% elif result.threat_level == 'malicious' %}
+                            <div class="alert alert-danger">
+                                <i class="fas fa-skull-crossbones me-2"></i>
+                                <strong>Malicious File</strong> - Threat detected and blocked
+                            </div>
+                        {% endif %}
+                        
+                        <!-- File Information -->
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <h6><i class="fas fa-info-circle me-2"></i>File Information</h6>
+                                <ul class="list-unstyled">
+                                    <li><strong>File Size:</strong> {{ "%.2f"|format(result.file_size / 1024) }} KB</li>
+                                    <li><strong>File Type:</strong> {{ result.file_type }}</li>
+                                    <li><strong>Risk Score:</strong> {{ "%.1f"|format(result.risk_score * 100) }}%</li>
+                                </ul>
+                            </div>
+                            <div class="col-md-6">
+                                <h6><i class="fas fa-fingerprint me-2"></i>Security Details</h6>
+                                <ul class="list-unstyled">
+                                    <li><strong>File Hash:</strong> <code>{{ result.file_hash[:16] }}...</code></li>
+                                    <li><strong>Scan Time:</strong> {{ result.scan_timestamp if result.scan_timestamp else 'N/A' }}</li>
+                                    <li><strong>Quarantined:</strong> {{ 'Yes' if result.quarantined else 'No' }}</li>
+                                </ul>
+                            </div>
+                        </div>
+                        
+                        <!-- Detection Details -->
+                        {% if result.detection_details %}
+                            <div class="mb-3">
+                                <h6><i class="fas fa-search me-2"></i>Detection Details</h6>
+                                <div class="alert alert-info">
+                                    <i class="fas fa-info-circle me-2"></i>{{ result.detection_details }}
+                                </div>
+                            </div>
+                        {% endif %}
+                        
+                        <!-- Actions -->
+                        <div class="d-flex gap-2">
+                            <a href="{{ url_for('index') }}" class="btn btn-primary">
+                                <i class="fas fa-arrow-left me-1"></i>Back to Dashboard
+                            </a>
+                            {% if result.threat_level != 'safe' %}
+                                <button class="btn btn-warning" onclick="quarantineFile('{{ task.filename }}')">
+                                    <i class="fas fa-shield-alt me-1"></i>Quarantine File
+                                </button>
+                            {% endif %}
+                        </div>
+                        
+                    {% elif task.status == 'failed' %}
+                        <div class="alert alert-danger">
+                            <i class="fas fa-exclamation-circle me-2"></i>
+                            <strong>Scan Failed</strong>
+                            <p class="mb-0 mt-2">{{ task.error }}</p>
+                        </div>
+                        <a href="{{ url_for('index') }}" class="btn btn-primary">
+                            <i class="fas fa-arrow-left me-1"></i>Back to Dashboard
+                        </a>
+                        
+                    {% else %}
+                        <div class="text-center">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p class="mt-2">Processing scan...</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+function quarantineFile(filename) {
+    if (confirm('Are you sure you want to quarantine this file?')) {
+        fetch('/quarantine', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                filename: filename,
+                action: 'quarantine'
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('File quarantined successfully');
+                location.reload();
+            } else {
+                alert('Error quarantining file: ' + data.error);
+            }
+        })
+        .catch(error => {
+            alert('Error: ' + error);
+        });
+    }
+}
+</script>
+{% endblock %}
