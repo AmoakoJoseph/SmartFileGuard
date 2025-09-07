@@ -2,6 +2,7 @@ from datetime import datetime
 from app import db
 from sqlalchemy import Column, Integer, String, DateTime, Text, Float, Boolean, LargeBinary
 
+
 class ScanResult(db.Model):
     __tablename__ = 'scan_results'
     
@@ -18,6 +19,7 @@ class ScanResult(db.Model):
     original_path = Column(String(500))
     quarantine_path = Column(String(500))
 
+
 class URLScan(db.Model):
     __tablename__ = 'url_scans'
     
@@ -29,6 +31,7 @@ class URLScan(db.Model):
     detection_details = Column(Text)
     scan_timestamp = Column(DateTime, default=datetime.utcnow)
     threat_intel_data = Column(Text)
+
 
 class QuarantineItem(db.Model):
     __tablename__ = 'quarantine_items'
@@ -44,6 +47,7 @@ class QuarantineItem(db.Model):
     deleted = Column(Boolean, default=False)
     deleted_timestamp = Column(DateTime)
 
+
 class ActivityLog(db.Model):
     __tablename__ = 'activity_logs'
     
@@ -55,6 +59,7 @@ class ActivityLog(db.Model):
     user_agent = Column(Text)
     success = Column(Boolean, default=True)
 
+
 class SystemMetrics(db.Model):
     __tablename__ = 'system_metrics'
     
@@ -62,3 +67,5 @@ class SystemMetrics(db.Model):
     metric_name = Column(String(100), nullable=False)
     metric_value = Column(Float, nullable=False)
     timestamp = Column(DateTime, default=datetime.utcnow)
+
+

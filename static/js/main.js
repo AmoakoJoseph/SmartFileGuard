@@ -1,4 +1,4 @@
-// Main JavaScript functionality for SmartFileGuardian
+// Main JavaScript functionality for SmartFileGuard
 
 document.addEventListener('DOMContentLoaded', function() {
     initializeApp();
@@ -404,7 +404,7 @@ document.addEventListener('keydown', function(e) {
 });
 
 // Export functions for global use
-window.SmartFileGuardian = {
+window.SmartFileGuard = {
     showNotification,
     formatFileSize,
     isValidUrl,

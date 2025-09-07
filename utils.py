@@ -2,7 +2,7 @@ import os
 import logging
 from datetime import datetime
 from app import db
-from models import ActivityLog, SystemMetrics
+from db_models import ActivityLog, SystemMetrics
 
 def allowed_file(filename):
     """Check if file extension is allowed for upload"""

@@ -11,11 +11,15 @@ import logging
 from datetime import datetime, timedelta
 
 from app import app, db, limiter, socketio, csrf
-from models import ScanResult, URLScan, QuarantineItem, ActivityLog, SystemMetrics
+from db_models import ScanResult, URLScan, QuarantineItem, ActivityLog, SystemMetrics
 from file_scanner import FileScanner
 from threat_intel import ThreatIntelligence
 from quarantine import QuarantineManager
 from utils import log_activity, calculate_risk_score, allowed_file
+# Avoid favicon 404 noise
+@app.route('/favicon.ico')
+def favicon():
+    return ('', 204)
 
 # Enhanced imports for new features
 try:
@@ -606,7 +610,7 @@ def deployment_status():
     try:
         # System information
         system_info = {
-            'application': 'SmartFileGuardian',
+            'application': 'SmartFileGuard',
             'version': '2.0.0 - Advanced Edition',
             'deployment_date': datetime.utcnow().strftime('%Y-%m-%d'),
             'python_version': '3.11',

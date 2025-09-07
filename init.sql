@@ -1,4 +1,4 @@
--- Initialize PostgreSQL database for SmartFileGuardian
+-- Initialize PostgreSQL database for SmartFileGuard
 
 -- Create database (this is handled by docker-compose environment variables)
 -- CREATE DATABASE smartfileguardian;

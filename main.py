@@ -1,4 +1,10 @@
+import os
 from app import app
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    port_str = os.environ.get('PORT') or os.environ.get('APP_PORT') or '5000'
+    try:
+        port = int(port_str)
+    except ValueError:
+        port = 5000
+    app.run(host='127.0.0.1', port=port, debug=True, use_reloader=False)

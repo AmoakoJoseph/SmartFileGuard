@@ -4,7 +4,7 @@ import time
 from datetime import datetime
 from celery import Celery
 from app import app, db, celery
-from models import ScanResult, URLScan, ActivityLog, QuarantineItem
+from db_models import ScanResult, URLScan, ActivityLog, QuarantineItem
 from file_scanner import FileScanner
 from threat_intel import ThreatIntelligence
 from quarantine import QuarantineManager

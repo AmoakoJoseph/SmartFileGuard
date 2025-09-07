@@ -3,7 +3,7 @@ import shutil
 import logging
 from datetime import datetime
 from app import db
-from models import QuarantineItem, ScanResult
+from db_models import QuarantineItem, ScanResult
 
 class QuarantineManager:
     """Manages quarantine operations for infected files"""

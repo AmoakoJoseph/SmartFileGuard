@@ -7,7 +7,7 @@ from typing import Dict, List, Any, Optional
 from dataclasses import dataclass, asdict
 from enum import Enum
 from app import db
-from models import ScanResult, URLScan, ActivityLog, QuarantineItem
+from db_models import ScanResult, URLScan, ActivityLog, QuarantineItem
 
 class ConsentType(Enum):
     """Types of user consent"""

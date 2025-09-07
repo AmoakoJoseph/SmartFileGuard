@@ -124,7 +124,7 @@ class ThreatIntelligence:
             
             payload = {
                 "client": {
-                    "clientId": "SmartFileGuardian",
+                    "clientId": "SmartFileGuard",
                     "clientVersion": "1.0"
                 },
                 "threatInfo": {

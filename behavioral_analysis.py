@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from typing import Dict, List, Any, Optional
 import numpy as np
 from app import db
-from models import ScanResult, URLScan, ActivityLog
+from db_models import ScanResult, URLScan, ActivityLog
 
 @dataclass
 class BehavioralPattern:

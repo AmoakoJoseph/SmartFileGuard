@@ -600,4 +600,15 @@ class EnsembleMalwareDetector:
 
 
 # Initialize the ensemble detector
-ensemble_detector = EnsembleMalwareDetector()
+import os
+
+# Allow disabling deep learning components via environment for dev/Windows
+if os.environ.get('ENABLE_DEEP_LEARNING', 'true').lower() == 'true':
+    ensemble_detector = EnsembleMalwareDetector()
+else:
+    class _DisabledDetector:
+        def predict(self, features):
+            return 0.0
+        def extract_features(self, *args, **kwargs):
+            return []
+    ensemble_detector = _DisabledDetector()

@@ -1,6 +1,6 @@
-# SmartFileGuardian v2.0 - Advanced Edition
+# SmartFileGuard v2.0 - Advanced Edition
 
-SmartFileGuardian is a comprehensive AI-powered malware detection and threat analysis platform that combines advanced machine learning models, real-time scanning, behavioral analysis, and enterprise-grade security features.
+SmartFileGuard is a comprehensive AI-powered malware detection and threat analysis platform that combines advanced machine learning models, real-time scanning, behavioral analysis, and enterprise-grade security features.
 
 ## 🚀 Key Features
 
@@ -490,5 +490,5 @@ This application is designed for educational and enterprise security purposes. E
 
 ---
 
-**SmartFileGuardian v2.0** - Advanced AI-Powered Malware Detection System
+**SmartFileGuard v2.0** - Advanced AI-Powered Malware Detection System
 Built with Flask, TensorFlow, PyTorch, and enterprise security in mind.

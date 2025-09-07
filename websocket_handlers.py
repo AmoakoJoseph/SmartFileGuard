@@ -5,7 +5,7 @@ from datetime import datetime
 from flask import request
 from flask_socketio import emit, join_room, leave_room, disconnect
 from app import socketio, db
-from models import ScanResult, URLScan, ActivityLog
+from db_models import ScanResult, URLScan, ActivityLog
 from celery import current_task
 
 class WebSocketHandler:
@@ -86,7 +86,7 @@ def handle_connect():
         emit('connection_confirmed', {
             'session_id': session_id,
             'server_time': datetime.utcnow().isoformat(),
-            'message': 'Connected to SmartFileGuardian real-time updates'
+            'message': 'Connected to SmartFileGuard real-time updates'
         })
         
     except Exception as e:

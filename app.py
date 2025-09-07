@@ -107,7 +107,7 @@ os.makedirs(app.config['QUARANTINE_FOLDER'], exist_ok=True)
 
 with app.app_context():
     # Import models to ensure tables are created
-    import models
+    import db_models as models
     db.create_all()
     
     # Import enhanced components
