@@ -18,6 +18,8 @@ class ThreatIntelligence:
         # API endpoints
         self.google_sb_url = "https://safebrowsing.googleapis.com/v4/threatMatches:find"
         self.virustotal_url = "https://www.virustotal.com/vtapi/v2/url/report"
+        self.virustotal_url_v3 = "https://www.virustotal.com/api/v3/urls"
+        self.virustotal_file_v3 = "https://www.virustotal.com/api/v3/files"
         self.phishtank_url = "http://checkurl.phishtank.com/checkurl/"
         
         # Cache for API responses (simple in-memory cache)
@@ -48,31 +50,41 @@ class ThreatIntelligence:
             
             threat_sources = []
             
-            # Google Safe Browsing check
-            if self.google_safe_browsing_key:
-                gsb_result = self.check_google_safe_browsing(url)
-                if gsb_result['is_threat']:
-                    threat_sources.append('Google Safe Browsing')
-                    result['threat_intel_data']['google_safe_browsing'] = gsb_result
-            
-            # VirusTotal check
-            if self.virustotal_key:
-                vt_result = self.check_virustotal(url)
-                if vt_result['is_threat']:
-                    threat_sources.append('VirusTotal')
-                    result['threat_intel_data']['virustotal'] = vt_result
-            
-            # PhishTank check
-            if self.phishtank_key:
-                pt_result = self.check_phishtank(url)
-                if pt_result['is_threat']:
-                    threat_sources.append('PhishTank')
-                    result['threat_intel_data']['phishtank'] = pt_result
-            
-            # Basic URL analysis (heuristics)
+            # Always perform heuristic analysis first (fast and reliable)
             heuristic_result = self.analyze_url_heuristics(url)
             if heuristic_result['suspicious']:
                 result['detection_details'].extend(heuristic_result['reasons'])
+            
+            # Try external API checks with timeout protection
+            try:
+                # Google Safe Browsing check (with timeout)
+                if self.google_safe_browsing_key:
+                    gsb_result = self.check_google_safe_browsing(url)
+                    if gsb_result.get('is_threat', False):
+                        threat_sources.append('Google Safe Browsing')
+                        result['threat_intel_data']['google_safe_browsing'] = gsb_result
+            except Exception as e:
+                logging.warning(f"Google Safe Browsing check failed: {str(e)}")
+            
+            try:
+                # VirusTotal check (with timeout)
+                if self.virustotal_key:
+                    vt_result = self.check_virustotal(url)
+                    if vt_result.get('is_threat', False):
+                        threat_sources.append('VirusTotal')
+                        result['threat_intel_data']['virustotal'] = vt_result
+            except Exception as e:
+                logging.warning(f"VirusTotal check failed: {str(e)}")
+            
+            try:
+                # PhishTank check (with timeout)
+                if self.phishtank_key:
+                    pt_result = self.check_phishtank(url)
+                    if pt_result.get('is_threat', False):
+                        threat_sources.append('PhishTank')
+                        result['threat_intel_data']['phishtank'] = pt_result
+            except Exception as e:
+                logging.warning(f"PhishTank check failed: {str(e)}")
             
             # Calculate risk score and threat level
             threat_count = len(threat_sources)
@@ -96,6 +108,10 @@ class ThreatIntelligence:
             
             if threat_sources:
                 result['detection_details'].append(f"Flagged by: {', '.join(threat_sources)}")
+            
+            # Add note if external APIs are not configured
+            if not any([self.google_safe_browsing_key, self.virustotal_key, self.phishtank_key]):
+                result['detection_details'].append("External threat intelligence APIs not configured - using heuristic analysis only")
             
             # Cache the result
             self.cache[cache_key] = {
@@ -143,7 +159,7 @@ class ThreatIntelligence:
             response = requests.post(
                 f"{self.google_sb_url}?key={self.google_safe_browsing_key}",
                 json=payload,
-                timeout=10
+                timeout=5
             )
             
             if response.status_code == 200:
@@ -194,7 +210,7 @@ class ThreatIntelligence:
             
             # Get analysis results
             analysis_url = f"{self.virustotal_url_v3}/{url_id}"
-            response = requests.get(analysis_url, headers=headers, timeout=15)
+            response = requests.get(analysis_url, headers=headers, timeout=5)
             
             if response.status_code == 200:
                 data = response.json()
@@ -261,7 +277,7 @@ class ThreatIntelligence:
                 'resource': url
             }
             
-            response = requests.get(self.virustotal_url, params=params, timeout=10)
+            response = requests.get(self.virustotal_url, params=params, timeout=5)
             
             if response.status_code == 200:
                 result = response.json()
@@ -302,7 +318,7 @@ class ThreatIntelligence:
             }
             
             submit_data = {'url': url}
-            response = requests.post(self.virustotal_url_v3, json=submit_data, headers=headers, timeout=10)
+            response = requests.post(self.virustotal_url_v3, json=submit_data, headers=headers, timeout=5)
             
             if response.status_code == 200:
                 data = response.json()
@@ -335,7 +351,7 @@ class ThreatIntelligence:
                 'app_key': self.phishtank_key
             }
             
-            response = requests.post(self.phishtank_url, data=data, timeout=10)
+            response = requests.post(self.phishtank_url, data=data, timeout=5)
             
             if response.status_code == 200:
                 result = response.json()

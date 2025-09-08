@@ -7,28 +7,44 @@
     <!-- Dashboard Header -->
     <div class="row mb-4">
         <div class="col">
-            <h1 class="h2 mb-3">
-                <i class="fas fa-shield-alt text-primary me-2"></i>
-                Security Dashboard
-            </h1>
-            <p class="lead text-muted">
-                Upload files or analyze URLs for comprehensive threat detection and security analysis.
-            </p>
+            <div class="text-center mb-4">
+                <h1 class="h2 mb-3 animate-fade-in">
+                    <i class="fas fa-shield-alt text-primary me-2 animate-pulse"></i>
+                    Security Dashboard
+                </h1>
+                <p class="lead text-muted animate-fade-in-up" style="animation-delay: 0.2s;">
+                    Upload files or analyze URLs for comprehensive threat detection and security analysis.
+                </p>
+                <div class="mt-3 animate-fade-in-up" style="animation-delay: 0.4s;">
+                    <span class="badge bg-success me-2 animate-pulse">
+                        <i class="fas fa-check-circle me-1"></i>
+                        System Online
+                    </span>
+                    <span class="badge bg-info me-2 animate-bounce">
+                        <i class="fas fa-brain me-1"></i>
+                        AI Powered
+                    </span>
+                    <span class="badge bg-warning animate-glow">
+                        <i class="fas fa-shield-alt me-1"></i>
+                        Real-time Protection
+                    </span>
+                </div>
+            </div>
         </div>
     </div>
 
     <!-- Statistics Cards -->
     <div class="row mb-4">
         <div class="col-md-3 mb-3">
-            <div class="card bg-primary text-white">
+            <div class="card bg-primary text-white stats-card animate-fade-in" style="animation-delay: 0.1s;">
                 <div class="card-body">
                     <div class="d-flex justify-content-between">
                         <div>
-                            <h4 class="card-title">{{ stats.total_scans }}</h4>
+                            <h4 class="card-title animate-counter" data-target="{{ stats.total_scans }}">0</h4>
                             <p class="card-text">Total Scans</p>
                         </div>
                         <div class="align-self-center">
-                            <i class="fas fa-search fa-2x opacity-75"></i>
+                            <i class="fas fa-search fa-2x opacity-75 animate-bounce"></i>
                         </div>
                     </div>
                 </div>
@@ -36,15 +52,15 @@
         </div>
         
         <div class="col-md-3 mb-3">
-            <div class="card bg-success text-white">
+            <div class="card bg-success text-white stats-card animate-fade-in" style="animation-delay: 0.2s;">
                 <div class="card-body">
                     <div class="d-flex justify-content-between">
                         <div>
-                            <h4 class="card-title">{{ stats.safe_count }}</h4>
+                            <h4 class="card-title animate-counter" data-target="{{ stats.safe_count }}">0</h4>
                             <p class="card-text">Safe Files</p>
                         </div>
                         <div class="align-self-center">
-                            <i class="fas fa-check-circle fa-2x opacity-75"></i>
+                            <i class="fas fa-check-circle fa-2x opacity-75 animate-pulse"></i>
                         </div>
                     </div>
                 </div>
@@ -52,15 +68,15 @@
         </div>
         
         <div class="col-md-3 mb-3">
-            <div class="card bg-warning text-dark">
+            <div class="card bg-warning text-dark stats-card animate-fade-in" style="animation-delay: 0.3s;">
                 <div class="card-body">
                     <div class="d-flex justify-content-between">
                         <div>
-                            <h4 class="card-title">{{ stats.suspicious_count }}</h4>
+                            <h4 class="card-title animate-counter" data-target="{{ stats.suspicious_count }}">0</h4>
                             <p class="card-text">Suspicious</p>
                         </div>
                         <div class="align-self-center">
-                            <i class="fas fa-exclamation-triangle fa-2x opacity-75"></i>
+                            <i class="fas fa-exclamation-triangle fa-2x opacity-75 animate-shake"></i>
                         </div>
                     </div>
                 </div>
@@ -68,15 +84,15 @@
         </div>
         
         <div class="col-md-3 mb-3">
-            <div class="card bg-danger text-white">
+            <div class="card bg-danger text-white stats-card animate-fade-in" style="animation-delay: 0.4s;">
                 <div class="card-body">
                     <div class="d-flex justify-content-between">
                         <div>
-                            <h4 class="card-title">{{ stats.malicious_count }}</h4>
+                            <h4 class="card-title animate-counter" data-target="{{ stats.malicious_count }}">0</h4>
                             <p class="card-text">Threats Blocked</p>
                         </div>
                         <div class="align-self-center">
-                            <i class="fas fa-skull-crossbones fa-2x opacity-75"></i>
+                            <i class="fas fa-skull-crossbones fa-2x opacity-75 animate-glow"></i>
                         </div>
                     </div>
                 </div>
@@ -88,23 +104,26 @@
     <div class="row">
         <!-- File Upload Section -->
         <div class="col-lg-6 mb-4">
-            <div class="card h-100">
+            <div class="card h-100 animate-slide-in-left">
                 <div class="card-header">
                     <h5 class="card-title mb-0">
-                        <i class="fas fa-file-upload me-2"></i>
+                        <i class="fas fa-file-upload me-2 animate-rotate"></i>
                         File Analysis
                     </h5>
                 </div>
                 <div class="card-body">
                     <form action="{{ url_for('upload_file') }}" method="post" enctype="multipart/form-data" id="fileUploadForm">
                         {{ file_form.hidden_tag() }}
-                        <div class="upload-area border border-dashed border-2 rounded p-4 text-center mb-3" id="uploadArea">
-                            <i class="fas fa-cloud-upload-alt fa-3x text-muted mb-3"></i>
-                            <h6 class="text-muted mb-2">Drag and drop files here</h6>
-                            <p class="text-muted small mb-3">or click to select files</p>
+                        <div class="upload-area border border-dashed border-2 rounded p-4 text-center mb-3 animate-hover-lift" id="uploadArea">
+                            <div class="upload-icon-container mb-3">
+                                <i class="fas fa-cloud-upload-alt fa-3x text-muted animate-float"></i>
+                                <div class="upload-pulse"></div>
+                            </div>
+                            <h6 class="text-muted mb-2 animate-fade-in-up">Drag and drop files here</h6>
+                            <p class="text-muted small mb-3 animate-fade-in-up" style="animation-delay: 0.2s;">or click to select files</p>
                             {{ file_form.files(class="d-none", id="fileInput") }}
-                            <button type="button" class="btn btn-outline-primary" id="selectFilesBtn">
-                                <i class="fas fa-folder-open me-1"></i>
+                            <button type="button" class="btn btn-outline-primary btn-lg animate-bounce" id="selectFilesBtn">
+                                <i class="fas fa-folder-open me-2"></i>
                                 Select Files
                             </button>
                         </div>
@@ -128,10 +147,10 @@
 
         <!-- URL Analysis Section -->
         <div class="col-lg-6 mb-4">
-            <div class="card h-100">
+            <div class="card h-100 animate-slide-in-right">
                 <div class="card-header">
                     <h5 class="card-title mb-0">
-                        <i class="fas fa-globe me-2"></i>
+                        <i class="fas fa-globe me-2 animate-spin-slow"></i>
                         URL Analysis
                     </h5>
                 </div>
@@ -204,9 +223,11 @@
                                     </td>
                                     <td>
                                         <div class="progress" style="width: 100px; height: 20px;">
-                                            <div class="progress-bar bg-{{ 'success' if scan.risk_score < 0.3 else 'warning' if scan.risk_score < 0.7 else 'danger' }}" 
-                                                 style="width: {{ (scan.risk_score * 100) }}%">
-                                                {{ (scan.risk_score * 100) | round(1) }}%
+                                            {% set risk_percentage = (scan.risk_score * 100) | round(1) %}
+                                            {% set bar_class = 'success' if scan.risk_score < 0.3 else 'warning' if scan.risk_score < 0.7 else 'danger' %}
+                                            <div class="progress-bar bg-{{ bar_class }}" 
+                                                 style="width: {{ risk_percentage }}%">
+                                                {{ risk_percentage }}%
                                             </div>
                                         </div>
                                     </td>
@@ -292,6 +313,29 @@
 {% block extra_scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Counter Animation
+    function animateCounters() {
+        const counters = document.querySelectorAll('.animate-counter');
+        counters.forEach(counter => {
+            const target = parseInt(counter.getAttribute('data-target'));
+            const duration = 2000; // 2 seconds
+            const increment = target / (duration / 16); // 60fps
+            let current = 0;
+            
+            const timer = setInterval(() => {
+                current += increment;
+                if (current >= target) {
+                    current = target;
+                    clearInterval(timer);
+                }
+                counter.textContent = Math.floor(current);
+            }, 16);
+        });
+    }
+    
+    // Start counter animation after a short delay
+    setTimeout(animateCounters, 500);
+    
     // File upload handling
     const fileInput = document.getElementById('fileInput');
     const uploadArea = document.getElementById('uploadArea');
@@ -301,21 +345,30 @@ document.addEventListener('DOMContentLoaded', function() {
     // Drag and drop functionality
     uploadArea.addEventListener('dragover', function(e) {
         e.preventDefault();
-        uploadArea.classList.add('border-primary', 'bg-light');
+        uploadArea.classList.add('border-primary', 'bg-light', 'animate-pulse');
+        uploadArea.style.transform = 'scale(1.02)';
     });
     
     uploadArea.addEventListener('dragleave', function(e) {
         e.preventDefault();
-        uploadArea.classList.remove('border-primary', 'bg-light');
+        uploadArea.classList.remove('border-primary', 'bg-light', 'animate-pulse');
+        uploadArea.style.transform = 'scale(1)';
     });
     
     uploadArea.addEventListener('drop', function(e) {
         e.preventDefault();
-        uploadArea.classList.remove('border-primary', 'bg-light');
+        uploadArea.classList.remove('border-primary', 'bg-light', 'animate-pulse');
+        uploadArea.style.transform = 'scale(1)';
         
         const files = e.dataTransfer.files;
         fileInput.files = files;
         updateFileList();
+        
+        // Add success animation
+        uploadArea.style.animation = 'pulse 0.5s ease-in-out';
+        setTimeout(() => {
+            uploadArea.style.animation = '';
+        }, 500);
     });
     
     uploadArea.addEventListener('click', function() {
@@ -334,21 +387,22 @@ document.addEventListener('DOMContentLoaded', function() {
             uploadBtn.disabled = false;
             
             const listGroup = document.createElement('div');
-            listGroup.className = 'list-group';
+            listGroup.className = 'list-group animate-fade-in';
             
             for (let i = 0; i < files.length; i++) {
                 const file = files[i];
                 const item = document.createElement('div');
-                item.className = 'list-group-item d-flex justify-content-between align-items-center';
+                item.className = 'list-group-item d-flex justify-content-between align-items-center animate-slide-in-left';
+                item.style.animationDelay = `${i * 0.1}s`;
                 
                 const fileSize = (file.size / 1024 / 1024).toFixed(2);
                 item.innerHTML = `
                     <div>
-                        <i class="fas fa-file me-2"></i>
+                        <i class="fas fa-file me-2 animate-bounce"></i>
                         <strong>${file.name}</strong>
                         <small class="text-muted ms-2">(${fileSize} MB)</small>
                     </div>
-                    <span class="badge bg-primary rounded-pill">Ready</span>
+                    <span class="badge bg-primary rounded-pill animate-pulse">Ready</span>
                 `;
                 
                 listGroup.appendChild(item);
@@ -362,14 +416,40 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Form submission handling
     document.getElementById('fileUploadForm').addEventListener('submit', function() {
-        uploadBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Scanning...';
+        uploadBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1 animate-spin-slow"></i> Scanning...';
         uploadBtn.disabled = true;
+        uploadBtn.classList.add('animate-pulse');
     });
     
     document.getElementById('urlScanForm').addEventListener('submit', function() {
         const submitBtn = this.querySelector('button[type="submit"]');
-        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Analyzing...';
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1 animate-spin-slow"></i> Analyzing...';
         submitBtn.disabled = true;
+        submitBtn.classList.add('animate-pulse');
+    });
+    
+    // Add hover effects to navigation
+    document.querySelectorAll('.nav-link').forEach(link => {
+        link.addEventListener('mouseenter', function() {
+            this.style.transform = 'translateX(5px)';
+            this.style.transition = 'transform 0.3s ease';
+        });
+        
+        link.addEventListener('mouseleave', function() {
+            this.style.transform = 'translateX(0)';
+        });
+    });
+    
+    // Add loading animation to buttons
+    document.querySelectorAll('.btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            if (!this.disabled) {
+                this.style.transform = 'scale(0.95)';
+                setTimeout(() => {
+                    this.style.transform = 'scale(1)';
+                }, 150);
+            }
+        });
     });
 });
 </script>
