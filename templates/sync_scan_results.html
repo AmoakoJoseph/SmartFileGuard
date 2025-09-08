@@ -151,7 +151,7 @@ function quarantineFile(filename) {
         .then(data => {
             if (data.success) {
                 alert('File quarantined successfully');
-                location.reload();
+                window.location.href = '/quarantine';
             } else {
                 alert('Error quarantining file: ' + data.error);
             }
