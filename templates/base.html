@@ -56,6 +56,39 @@
             color: var(--text-primary) !important;
         }
         
+        /* Creative brand text styling */
+        .brand-text {
+            font-weight: bold;
+            font-size: 1.25rem;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+            transition: all 0.3s ease;
+        }
+        
+        .brand-text:hover {
+            transform: scale(1.05);
+            text-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+        }
+        
+        .brand-text span {
+            display: inline-block;
+            transition: all 0.3s ease;
+        }
+        
+        .brand-text:hover span:nth-child(1) {
+            color: #007bff !important;
+            text-shadow: 0 0 10px rgba(0, 123, 255, 0.5);
+        }
+        
+        .brand-text:hover span:nth-child(2) {
+            color: #dc3545 !important;
+            text-shadow: 0 0 10px rgba(220, 53, 69, 0.5);
+        }
+        
+        .brand-text:hover span:nth-child(3) {
+            color: #28a745 !important;
+            text-shadow: 0 0 10px rgba(40, 167, 69, 0.5);
+        }
+        
         .card {
             background-color: var(--bg-primary) !important;
             color: var(--text-primary) !important;
@@ -446,8 +479,10 @@
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark border-bottom">
         <div class="container">
             <a class="navbar-brand" href="{{ url_for('index') }}">
-                <i class="fas fa-shield-alt me-2"></i>
-                SmartFileGuard
+                <i class="fas fa-shield-alt me-2 text-primary"></i>
+                <span class="brand-text">
+                    <span class="text-primary">Smart</span><span class="text-danger">File</span><span class="text-success">Guard</span>
+                </span>
             </a>
             
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
@@ -479,16 +514,10 @@
                 </ul>
                 
                 <ul class="navbar-nav">
-                    <li class="nav-item me-3">
+                    <li class="nav-item">
                         <button class="btn btn-outline-secondary btn-sm" id="themeToggle" title="Toggle Theme">
                             <i class="fas fa-sun" id="themeIcon"></i>
                         </button>
-                    </li>
-                    <li class="nav-item">
-                        <span class="navbar-text">
-                            <i class="fas fa-shield-alt text-success me-1 animate-pulse"></i>
-                            System Active
-                        </span>
                     </li>
                 </ul>
             </div>
