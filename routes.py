@@ -303,20 +303,33 @@ def restore_file(item_id):
     """Restore a file from quarantine"""
     try:
         quarantine_item = QuarantineItem.query.get_or_404(item_id)
+        logging.info(f"Attempting to restore file: {quarantine_item.filename} (ID: {item_id})")
         
         if quarantine_manager.restore_file(quarantine_item.quarantine_path, quarantine_item.original_path):
+            logging.info(f"File restore successful, updating database for item {item_id}")
+            
+            # Update quarantine item
             quarantine_item.restored = True
             quarantine_item.restored_timestamp = datetime.utcnow()
-            db.session.commit()
             
             # Update scan result
             scan_result = ScanResult.query.get(quarantine_item.scan_result_id)
-            scan_result.quarantined = False
-            db.session.commit()
+            if scan_result:
+                scan_result.quarantined = False
+                logging.info(f"Updated scan result {scan_result.id} to not quarantined")
             
-            flash('File restored successfully', 'success')
-            log_activity('file_restore', f'Restored file: {quarantine_item.filename}', request.remote_addr, request.user_agent.string)
+            # Commit all changes in a single transaction
+            try:
+                db.session.commit()
+                logging.info(f"Database updated successfully for restored file {quarantine_item.filename}")
+                flash('File restored successfully', 'success')
+                log_activity('file_restore', f'Restored file: {quarantine_item.filename}', request.remote_addr, request.user_agent.string)
+            except Exception as db_error:
+                logging.error(f"Database commit failed: {str(db_error)}")
+                db.session.rollback()
+                flash('File was restored but database update failed', 'warning')
         else:
+            logging.error(f"File restore failed for item {item_id}")
             flash('Failed to restore file', 'error')
             
     except Exception as e:

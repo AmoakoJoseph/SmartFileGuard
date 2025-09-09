@@ -57,6 +57,8 @@ class QuarantineManager:
     def restore_file(self, quarantine_path, original_path):
         """Restore a file from quarantine to its original location"""
         try:
+            logging.info(f"Starting restore process: {quarantine_path} -> {original_path}")
+            
             if not os.path.exists(quarantine_path):
                 logging.error(f"Quarantined file not found: {quarantine_path}")
                 return False
@@ -64,6 +66,7 @@ class QuarantineManager:
             # Ensure the original directory exists
             original_dir = os.path.dirname(original_path)
             os.makedirs(original_dir, exist_ok=True)
+            logging.info(f"Original directory ensured: {original_dir}")
             
             # If original path exists, create a backup name
             if os.path.exists(original_path):
@@ -72,12 +75,19 @@ class QuarantineManager:
                 while os.path.exists(f"{base}_restored_{counter}{ext}"):
                     counter += 1
                 original_path = f"{base}_restored_{counter}{ext}"
+                logging.info(f"Original path exists, using backup name: {original_path}")
             
             # Move file back from quarantine
             shutil.move(quarantine_path, original_path)
+            logging.info(f"File successfully moved: {quarantine_path} -> {original_path}")
             
-            logging.info(f"File restored from quarantine: {quarantine_path} -> {original_path}")
-            return True
+            # Verify the move was successful
+            if os.path.exists(original_path) and not os.path.exists(quarantine_path):
+                logging.info(f"Restore verification successful: file exists at {original_path}")
+                return True
+            else:
+                logging.error(f"Restore verification failed: file not found at {original_path} or still exists at {quarantine_path}")
+                return False
             
         except Exception as e:
             logging.error(f"Error restoring file from quarantine: {str(e)}")
